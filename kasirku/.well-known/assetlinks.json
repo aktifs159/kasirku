@@ -1,8 +1,0 @@
-[{
-      "relation": ["delegate_permission/common.handle_all_urls"],
-      "target": {
-        "namespace": "android_app",
-        "package_name": "io.github.aktifs159.twa",
-        "sha256_cert_fingerprints": ["88:54:C4:91:6F:71:57:9E:71:DF:88:CA:B8:EF:96:4A:67:0A:CE:71:AA:26:04:A6:F9:7C:A3:54:EC:8B:2D:96"]
-      }
-    }]
