@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kasirku - Aplikasi Pembukuan & Stok Toko</title>
-    
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2563eb">
     <meta name="description" content="Aplikasi POS Kasir dan Pembukuan Warung Kasirku">
 
@@ -81,7 +81,7 @@
                 <div class="space-y-3.5">
                     <div>
                         <label class="text-xs font-bold text-slate-600 uppercase">Kode Toko / Cabang</label>
-                        <input type="text" x-model="loginKodeToko" placeholder="Contoh: warung-acing-01" class="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-3 text-sm font-bold text-slate-900 focus:outline-none focus:border-brand-600 uppercase">
+                        <input type="text" x-model="loginKodeToko" placeholder="Contoh: warung-yosi-01" class="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-3 text-sm font-bold text-slate-900 focus:outline-none focus:border-brand-600 uppercase">
                         <p class="text-[10px] text-slate-400 mt-0.5">Harus sama antara Bos dan Karyawan di satu toko.</p>
                     </div>
 
@@ -96,7 +96,7 @@
                     <div>
                         <label class="text-xs font-bold text-slate-600 uppercase">Password Akses</label>
                         <input type="password" x-model="loginPassword" placeholder="Masukkan password..." class="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-3 text-sm font-bold text-slate-900 focus:outline-none focus:border-brand-600">
-                        <p class="text-[11px] text-slate-400 mt-1">Default Pemilik: <strong class="text-slate-600">bos123</strong> | Karyawan: <strong class="text-slate-600">kasir123</strong></p>
+                        <p class="text-[11px] text-slate-400 mt-1">Default Pemilik: <strong class="text-slate-600"> </strong> | Karyawan: <strong class="text-slate-600"> </strong></p>
                     </div>
 
                     <button @click="prosesLogin()" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-extrabold py-3.5 rounded-xl text-sm transition shadow-lg shadow-brand-600/20 active:scale-95">
