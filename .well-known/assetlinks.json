@@ -3,6 +3,6 @@
       "target": {
         "namespace": "android_app",
         "package_name": "io.github.aktifs159.twa",
-        "sha256_cert_fingerprints": ["88:54:C4:91:6F:71:57:9E:71:DF:88:CA:B8:EF:96:4A:67:0A:CE:71:AA:26:04:A6:F9:7C:A3:54:EC:8B:2D:96"]
+        "sha256_cert_fingerprints": ["1C:9A:9E:43:9F:1A:28:6D:54:79:FD:93:79:A0:EE:2B:CD:B1:A3:9C:E2:BF:68:4E:45:49:27:D8:B2:6D:77:A6"]
       }
     }]
