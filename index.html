@@ -450,11 +450,11 @@
                             </div>
                         </div>
                         <div>
-                            <label class="text-xs font-bold text-slate-600 uppercase">Upload Gambar Produk</label>
+                            <label class="text-xs font-bold text-slate-600 uppercase">Upload Gambar Produk (Otomatis Dikompres Ultra-Ringan)</label>
                             <input type="file" accept="image/*" @change="handleFileUpload($event)" class="w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 mt-1">
                             <div class="mt-2 flex items-center gap-2" x-show="formBarang.gambar">
                                 <img :src="formBarang.gambar" class="w-12 h-12 object-cover rounded-xl border">
-                                <span class="text-xs text-slate-400">Gambar terpilih</span>
+                                <span class="text-xs text-slate-400">Gambar Siap Dipakai</span>
                                 <button type="button" @click="formBarang.gambar = ''" class="text-xs text-rose-600 font-bold ml-auto">Hapus Gambar</button>
                             </div>
                         </div>
@@ -559,7 +559,7 @@
             <!-- TAB: LAPORAN -->
             <div x-show="currentTab === 'riwayat'" class="space-y-4">
                 <div class="flex justify-between items-center">
-                    <h3 class="text-xs font-black text-slate-500 uppercase tracking-wider">Laporan Penjualan</h3>
+                    <h3 class="text-xs font-black text-slate-500 uppercase tracking-wider">Laporan Penjualan (100 Terakhir)</h3>
                     <button @click="exportCSV()" class="bg-white text-slate-800 text-sm px-4 py-2.5 rounded-xl font-bold border shadow-sm flex items-center gap-2">
                         <i data-lucide="download" class="w-4 h-4 text-brand-600"></i> <span>Export CSV</span>
                     </button>
@@ -714,7 +714,7 @@
         </nav>
     </div>
 
-    <!-- Script Logika & Firebase Realtime Sync -->
+    <!-- Script Logika & Firebase Sub-Collections Sync -->
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyCuoBATHeQBLEx1fCzg8n4XkOGdR-N9yg0",
@@ -731,6 +731,7 @@
         const db = firebase.firestore();
 
         let audioCtxGlobal = null;
+        let unsubs = [];
 
         function warungApp() {
             return {
@@ -901,6 +902,8 @@
                 },
 
                 logout() {
+                    unsubs.forEach(u => u && u());
+                    unsubs = [];
                     localStorage.removeItem('warung_login');
                     localStorage.removeItem('warung_role');
                     localStorage.removeItem('warung_kode_toko');
@@ -910,53 +913,78 @@
 
                 dengarkanDataRealtime() {
                     if (!this.kodeToko) return;
-                    db.collection('kasirku_toko').doc(this.kodeToko)
-                      .onSnapshot((doc) => {
-                          if (doc.exists) {
-                              const data = doc.data() || {};
-                              this.stokBarang = Array.isArray(data.stokBarang) ? data.stokBarang : [];
-                              this.riwayatTransaksi = Array.isArray(data.riwayatTransaksi) ? data.riwayatTransaksi : [];
-                              this.riwayatPengeluaran = Array.isArray(data.riwayatPengeluaran) ? data.riwayatPengeluaran : [];
-                              if (data.profilToko && typeof data.profilToko === 'object') {
-                                  this.profilToko = {
-                                      nama: data.profilToko.nama || 'Kasirku',
-                                      alamat: data.profilToko.alamat || '',
-                                      telp: data.profilToko.telp || '',
-                                      qrisImg: data.profilToko.qrisImg || ''
-                                  };
-                              }
-                          } else {
-                              this.stokBarang = [];
-                              this.riwayatTransaksi = [];
-                              this.riwayatPengeluaran = [];
-                          }
-                      }, (error) => {
-                          console.error("Gagal memuat data realtime:", error);
-                          this.showNotification('Gagal terhubung ke server cloud', 'error');
-                      });
-                },
+                    unsubs.forEach(u => u && u());
+                    unsubs = [];
 
-                async simpanKeFirebase() {
-                    if (!this.kodeToko) return;
-                    try {
-                        const dataBersih = JSON.parse(JSON.stringify({
-                            stokBarang: this.stokBarang || [],
-                            riwayatTransaksi: this.riwayatTransaksi || [],
-                            riwayatPengeluaran: this.riwayatPengeluaran || [],
-                            profilToko: this.profilToko || {}
-                        }));
+                    const tokoRef = db.collection('kasirku_toko').doc(this.kodeToko);
 
-                        await db.collection('kasirku_toko').doc(this.kodeToko).set(dataBersih, { merge: true });
-                    } catch (e) {
-                        console.error("Gagal menyimpan ke firebase: ", e);
-                        this.showNotification('Gagal menyimpan perubahan ke cloud', 'error');
-                    }
+                    // 1. Profil Toko
+                    const u1 = tokoRef.onSnapshot((doc) => {
+                        if (doc.exists && doc.data().profilToko) {
+                            this.profilToko = doc.data().profilToko;
+                        }
+                    });
+                    unsubs.push(u1);
+
+                    // 2. Sub-koleksi Produk (Skalabel Ribuan Produk)
+                    const u2 = tokoRef.collection('produk').onSnapshot((snap) => {
+                        const items = [];
+                        snap.forEach(doc => {
+                            items.push({ id: doc.id, ...doc.data() });
+                        });
+                        this.stokBarang = items;
+                    });
+                    unsubs.push(u2);
+
+                    // 3. Sub-koleksi Transaksi (Dibatasi 100 Terakhir untuk Performa Tinggi)
+                    const u3 = tokoRef.collection('transaksi')
+                        .orderBy('timestamp', 'desc')
+                        .limit(100)
+                        .onSnapshot((snap) => {
+                            const listTrx = [];
+                            snap.forEach(doc => {
+                                listTrx.push({ id: doc.id, ...doc.data() });
+                            });
+                            this.riwayatTransaksi = listTrx;
+                        }, (err) => {
+                            tokoRef.collection('transaksi').limit(100).get().then(snap => {
+                                const listTrx = [];
+                                snap.forEach(doc => listTrx.push({ id: doc.id, ...doc.data() }));
+                                this.riwayatTransaksi = listTrx.sort((a,b) => (b.timestamp || b.id) - (a.timestamp || a.id));
+                            });
+                        });
+                    unsubs.push(u3);
+
+                    // 4. Sub-koleksi Pengeluaran
+                    const u4 = tokoRef.collection('pengeluaran')
+                        .orderBy('timestamp', 'desc')
+                        .limit(100)
+                        .onSnapshot((snap) => {
+                            const listP = [];
+                            snap.forEach(doc => {
+                                listP.push({ id: doc.id, ...doc.data() });
+                            });
+                            this.riwayatPengeluaran = listP;
+                        }, (err) => {
+                            tokoRef.collection('pengeluaran').get().then(snap => {
+                                const listP = [];
+                                snap.forEach(doc => listP.push({ id: doc.id, ...doc.data() }));
+                                this.riwayatPengeluaran = listP.sort((a,b) => (b.timestamp || b.id) - (a.timestamp || a.id));
+                            });
+                        });
+                    unsubs.push(u4);
                 },
 
                 async simpanProfilToko() {
-                    if (this.userRole !== 'pemilik') return;
-                    await this.simpanKeFirebase();
-                    this.showNotification('Profil toko & QRIS berhasil diperbarui!');
+                    if (this.userRole !== 'pemilik' || !this.kodeToko) return;
+                    try {
+                        await db.collection('kasirku_toko').doc(this.kodeToko).set({
+                            profilToko: JSON.parse(JSON.stringify(this.profilToko))
+                        }, { merge: true });
+                        this.showNotification('Profil toko & QRIS berhasil diperbarui!');
+                    } catch (e) {
+                        this.showNotification('Gagal memperbarui profil toko', 'error');
+                    }
                 },
 
                 showNotification(message, type = 'success') {
@@ -1006,21 +1034,58 @@
                     );
                 },
 
+                // Fungsi Kompresi Gambar Ultra-Ringan (Maks 200px, Kualitas JPEG 60%)
+                // Menghasilkan ukuran gambar sangat kecil (~8-15KB) sehingga sanggup menampung ribuan gambar di Firestore tanpa lag
+                kompresGambar(file, callback) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            let width = img.width;
+                            let height = img.height;
+                            const maxDim = 200; // Dikompresi ke 200px (Sangat aman untuk ribuan produk)
+
+                            if (width > height) {
+                                if (width > maxDim) {
+                                    height = Math.round((height * maxDim) / width);
+                                    width = maxDim;
+                                }
+                            } else {
+                                if (height > maxDim) {
+                                    width = Math.round((width * maxDim) / height);
+                                    height = maxDim;
+                                }
+                            }
+
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+
+                            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+                            callback(compressedBase64);
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                },
+
                 handleFileUpload(event) {
                     const file = event.target.files[0];
                     if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (e) => { this.formBarang.gambar = e.target.result; };
-                        reader.readAsDataURL(file);
+                        this.kompresGambar(file, (dataUrl) => {
+                            this.formBarang.gambar = dataUrl;
+                        });
                     }
                 },
 
                 handleQrisUpload(event) {
                     const file = event.target.files[0];
                     if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (e) => { this.profilToko.qrisImg = e.target.result; };
-                        reader.readAsDataURL(file);
+                        this.kompresGambar(file, (dataUrl) => {
+                            this.profilToko.qrisImg = dataUrl;
+                        });
                     }
                 },
 
@@ -1043,25 +1108,33 @@
                 },
 
                 async simpanBarang() {
-                    if (this.userRole !== 'pemilik') {
+                    if (this.userRole !== 'pemilik' || !this.kodeToko) {
                         this.showNotification('Akses ditolak! Hanya Pemilik.', 'error');
                         return;
                     }
 
-                    if (this.isEditing) {
-                        const index = this.stokBarang.findIndex(i => i.id === this.editId);
-                        if (index !== -1) {
-                            this.stokBarang[index] = { ...this.formBarang, id: this.editId };
-                            await this.simpanKeFirebase();
+                    const docId = this.isEditing ? String(this.editId) : String(Date.now());
+                    const payload = JSON.parse(JSON.stringify({
+                        ...this.formBarang,
+                        modal: Number(this.formBarang.modal || 0),
+                        jual: Number(this.formBarang.jual || 0),
+                        stok: Number(this.formBarang.stok || 0)
+                    }));
+
+                    try {
+                        await db.collection('kasirku_toko').doc(this.kodeToko)
+                            .collection('produk').doc(docId).set(payload, { merge: true });
+
+                        if (this.isEditing) {
                             this.showNotification('Stok barang diperbarui!');
+                            this.batalEdit();
+                        } else {
+                            this.showNotification('Barang baru ditambahkan!');
+                            this.formBarang = { nama: '', sku: '', kategori: '', modal: '', jual: '', stok: '', gambar: '' };
                         }
-                        this.batalEdit();
-                    } else {
-                        const newItem = { ...this.formBarang, id: Date.now() };
-                        this.stokBarang.push(newItem);
-                        await this.simpanKeFirebase();
-                        this.showNotification('Barang baru ditambahkan!');
-                        this.formBarang = { nama: '', sku: '', kategori: '', modal: '', jual: '', stok: '', gambar: '' };
+                    } catch (e) {
+                        console.error("Gagal simpan barang:", e);
+                        this.showNotification('Gagal menyimpan produk ke cloud', 'error');
                     }
                 },
 
@@ -1080,11 +1153,15 @@
                 },
 
                 async hapusBarang(id) {
-                    if (this.userRole !== 'pemilik') return;
+                    if (this.userRole !== 'pemilik' || !this.kodeToko) return;
                     if (confirm('Yakin ingin menghapus barang ini?')) {
-                        this.stokBarang = this.stokBarang.filter(i => i.id !== id);
-                        await this.simpanKeFirebase();
-                        this.showNotification('Barang dihapus', 'error');
+                        try {
+                            await db.collection('kasirku_toko').doc(this.kodeToko)
+                                .collection('produk').doc(String(id)).delete();
+                            this.showNotification('Barang dihapus', 'error');
+                        } catch (e) {
+                            this.showNotification('Gagal menghapus barang', 'error');
+                        }
                     }
                 },
 
@@ -1200,11 +1277,27 @@
                 totalKeranjang() { return this.keranjang.reduce((acc, c) => acc + ((c.jual || 0) * c.qty), 0); },
                 hitungKembalian() { return (this.uangBayar || 0) - this.totalKeranjang(); },
 
+                async simpanTransaksiKeCloud(transaksiBaru) {
+                    const batch = db.batch();
+                    const tokoRef = db.collection('kasirku_toko').doc(this.kodeToko);
+
+                    const trxDocRef = tokoRef.collection('transaksi').doc(String(transaksiBaru.id));
+                    batch.set(trxDocRef, transaksiBaru);
+
+                    this.keranjang.forEach(c => {
+                        const prodDocRef = tokoRef.collection('produk').doc(String(c.id));
+                        batch.update(prodDocRef, {
+                            stok: firebase.firestore.FieldValue.increment(-c.qty)
+                        });
+                    });
+
+                    await batch.commit();
+                },
+
                 async prosesPembayaran() {
                     const total = this.totalKeranjang();
                     if ((this.uangBayar || 0) < total) { this.showNotification('Uang pembayaran kurang!', 'error'); return; }
 
-                    // Validasi kecukupan stok sebelum commit
                     for (let c of this.keranjang) {
                         const b = this.stokBarang.find(x => x.id === c.id);
                         if (!b || b.stok < c.qty) {
@@ -1213,28 +1306,29 @@
                         }
                     }
 
-                    this.keranjang.forEach(c => {
-                        const b = this.stokBarang.find(x => x.id === c.id);
-                        if (b) b.stok -= c.qty;
-                    });
-
+                    const now = Date.now();
                     const transaksiBaru = {
-                        id: Date.now(),
+                        id: now,
+                        timestamp: now,
                         tanggal: new Date().toLocaleString('id-ID'),
-                        items: this.keranjang.map(i => ({ ...i, modal: i.modal || 0 })),
+                        items: this.keranjang.map(i => ({ id: i.id, nama: i.nama, jual: Number(i.jual || 0), modal: Number(i.modal || 0), qty: Number(i.qty || 1) })),
                         total: total,
-                        bayar: this.uangBayar,
-                        kembali: this.hitungKembalian(),
+                        bayar: Number(this.uangBayar),
+                        kembali: Number(this.hitungKembalian()),
                         metode: 'tunai'
                     };
-                    this.riwayatTransaksi.unshift(transaksiBaru);
-                    await this.simpanKeFirebase();
 
-                    this.selectedTrx = transaksiBaru;
-                    this.showStrukModal = true;
-                    this.keranjang = [];
-                    this.uangBayar = null;
-                    this.showNotification('Transaksi Tunai Berhasil!');
+                    try {
+                        await this.simpanTransaksiKeCloud(transaksiBaru);
+                        this.selectedTrx = transaksiBaru;
+                        this.showStrukModal = true;
+                        this.keranjang = [];
+                        this.uangBayar = null;
+                        this.showNotification('Transaksi Tunai Berhasil!');
+                    } catch (e) {
+                        console.error("Gagal simpan transaksi:", e);
+                        this.showNotification('Gagal memproses transaksi!', 'error');
+                    }
                 },
 
                 async prosesPembayaranQRIS() {
@@ -1248,56 +1342,79 @@
                         }
                     }
 
-                    this.keranjang.forEach(c => {
-                        const b = this.stokBarang.find(x => x.id === c.id);
-                        if (b) b.stok -= c.qty;
-                    });
-
+                    const now = Date.now();
                     const transaksiBaru = {
-                        id: Date.now(),
+                        id: now,
+                        timestamp: now,
                         tanggal: new Date().toLocaleString('id-ID'),
-                        items: this.keranjang.map(i => ({ ...i, modal: i.modal || 0 })),
+                        items: this.keranjang.map(i => ({ id: i.id, nama: i.nama, jual: Number(i.jual || 0), modal: Number(i.modal || 0), qty: Number(i.qty || 1) })),
                         total: total,
                         bayar: total,
                         kembali: 0,
                         metode: 'qris'
                     };
-                    this.riwayatTransaksi.unshift(transaksiBaru);
-                    await this.simpanKeFirebase();
 
-                    this.selectedTrx = transaksiBaru;
-                    this.showStrukModal = true;
-                    this.keranjang = [];
-                    this.showNotification('Pembayaran QRIS Dikonfirmasi Berhasil!');
+                    try {
+                        await this.simpanTransaksiKeCloud(transaksiBaru);
+                        this.selectedTrx = transaksiBaru;
+                        this.showStrukModal = true;
+                        this.keranjang = [];
+                        this.showNotification('Pembayaran QRIS Dikonfirmasi Berhasil!');
+                    } catch (e) {
+                        console.error("Gagal simpan QRIS:", e);
+                        this.showNotification('Gagal memproses transaksi!', 'error');
+                    }
                 },
 
                 bukaStokStruk(trx) { this.selectedTrx = trx; this.showStrukModal = true; },
 
                 async simpanPengeluaran() {
-                    const p = { id: Date.now(), tanggal: new Date().toLocaleString('id-ID'), ...this.formPengeluaran };
-                    this.riwayatPengeluaran.unshift(p);
-                    await this.simpanKeFirebase();
-                    this.formPengeluaran = { keterangan: '', jumlah: '' };
-                    this.showNotification('Biaya dicatat!');
+                    if (!this.kodeToko) return;
+                    const now = Date.now();
+                    const p = { 
+                        id: now, 
+                        timestamp: now,
+                        tanggal: new Date().toLocaleString('id-ID'), 
+                        ...this.formPengeluaran,
+                        jumlah: Number(this.formPengeluaran.jumlah || 0)
+                    };
+
+                    try {
+                        await db.collection('kasirku_toko').doc(this.kodeToko)
+                            .collection('pengeluaran').doc(String(now)).set(p);
+                        this.formPengeluaran = { keterangan: '', jumlah: '' };
+                        this.showNotification('Biaya dicatat!');
+                    } catch (e) {
+                        this.showNotification('Gagal mencatat pengeluaran', 'error');
+                    }
                 },
 
                 async hapusPengeluaran(id) {
-                    if (this.userRole !== 'pemilik') return;
-                    this.riwayatPengeluaran = this.riwayatPengeluaran.filter(p => p.id !== id);
-                    await this.simpanKeFirebase();
+                    if (this.userRole !== 'pemilik' || !this.kodeToko) return;
+                    try {
+                        await db.collection('kasirku_toko').doc(this.kodeToko)
+                            .collection('pengeluaran').doc(String(id)).delete();
+                        this.showNotification('Catatan biaya dihapus');
+                    } catch (e) {
+                        this.showNotification('Gagal menghapus pengeluaran', 'error');
+                    }
                 },
 
                 async hapusTransaksi(id) {
-                    if (this.userRole !== 'pemilik') return;
+                    if (this.userRole !== 'pemilik' || !this.kodeToko) return;
                     if (confirm('Yakin ingin menghapus riwayat transaksi ini?')) {
-                        this.riwayatTransaksi = this.riwayatTransaksi.filter(t => t.id !== id);
-                        await this.simpanKeFirebase();
-                        this.showNotification('Riwayat transaksi dihapus', 'error');
+                        try {
+                            await db.collection('kasirku_toko').doc(this.kodeToko)
+                                .collection('transaksi').doc(String(id)).delete();
+                            this.showNotification('Riwayat transaksi dihapus', 'error');
+                        } catch (e) {
+                            this.showNotification('Gagal menghapus transaksi', 'error');
+                        }
                     }
                 },
 
                 confirmResetData() {
-                    if (this.userRole !== 'pemilik') return;
+                    if (this.userRole !== 'pemilik' || !this.kodeToko) return;
                     if (confirm('⚠️ Hati-hati! Reset seluruh data toko di cloud?')) {
                         db.collection('kasirku_toko').doc(this.kodeToko).delete().then(() => {
                             localStorage.clear();
