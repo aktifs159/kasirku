@@ -64,10 +64,22 @@
             -webkit-backdrop-filter: blur(12px);
             border-top: 1px solid #e2e8f0;
         }
+        
+        /* Pengaturan Cetak / Print Media */
         @media print {
             body * { visibility: hidden; }
             #printable-barcode-area, #printable-barcode-area * { visibility: visible; }
             #printable-barcode-area { position: absolute; left: 0; top: 0; width: 100%; }
+
+            #print-all-container, #print-all-container * { visibility: visible; }
+            #print-all-container { 
+                position: absolute; 
+                left: 0; 
+                top: 0; 
+                width: 100%; 
+                display: block !important;
+                background: white;
+            }
         }
     </style>
 </head>
@@ -88,14 +100,14 @@
                 <div class="space-y-4">
                     <div>
                         <label class="text-xs font-bold text-slate-600 uppercase">Kode Toko / Cabang</label>
-                        <input type="text" x-model="loginKodeToko" placeholder="Contoh: warung-yosi-01" class="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-3.5 text-base font-bold text-slate-900 focus:outline-none focus:border-brand-600 uppercase">
+                        <input type="text" x-model="loginKodeToko" placeholder="Contoh: Toko-yosi-01" class="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-3.5 text-base font-bold text-slate-900 focus:outline-none focus:border-brand-600 uppercase">
                         <p class="text-xs text-slate-400 mt-1">Harus sama antara Bos dan Karyawan di satu toko.</p>
                     </div>
 
                     <div>
                         <label class="text-xs font-bold text-slate-600 uppercase">Pilih Login Sebagai</label>
                         <select x-model="loginRole" class="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-3.5 text-base font-bold text-slate-900 focus:outline-none focus:border-brand-600">
-                            <option value="pemilik">👑 Pemilik Warung (Admin Utama)</option>
+                            <option value="pemilik">👑 Pemilik (Admin Utama)</option>
                             <option value="karyawan">🧑‍💼 Karyawan / Kasir</option>
                         </select>
                     </div>
@@ -451,7 +463,12 @@
 
                 <!-- List Stok Barang -->
                 <div class="space-y-2.5">
-                    <input type="text" x-model="searchStok" placeholder="Cari barang di daftar stok..." class="w-full bg-white border border-slate-300 rounded-2xl px-4 py-3 text-base font-medium">
+                    <div class="flex gap-2">
+                        <input type="text" x-model="searchStok" placeholder="Cari barang di daftar stok..." class="w-full bg-white border border-slate-300 rounded-2xl px-4 py-3 text-base font-medium">
+                        <button @click="cetakSemuaBarcode()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 rounded-2xl flex items-center justify-center shadow-md text-xs font-bold gap-1.5 whitespace-nowrap active:scale-95 transition" title="Cetak Semua Barcode Massal">
+                            <i data-lucide="printer" class="w-4 h-4"></i> Cetak Semua
+                        </button>
+                    </div>
 
                     <div class="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
                         <template x-for="item in filteredStokBarang" :key="item.id">
@@ -598,6 +615,23 @@
                 </div>
             </template>
 
+            <!-- AREA CETAK MASSAL TERSEMBUNYI (UNTUK CETAK SEMUA BARCODE SEKALIGUS) -->
+            <div id="print-all-container" style="display: none;">
+                <div style="padding: 10px;">
+                    <h2 style="text-align: center; font-family: sans-serif; font-weight: bold; margin-bottom: 20px;">LABEL BARCODE - <span x-text="profilToko.nama"></span></h2>
+                    <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center;">
+                        <template x-for="(item, idx) in stokBarang" :key="item.id">
+                            <div style="border: 1px dashed #94a3b8; padding: 12px; border-radius: 8px; width: 220px; text-align: center; background: white; margin-bottom: 10px; page-break-inside: avoid;">
+                                <p style="font-weight: bold; font-size: 13px; margin: 0 0 5px 0; font-family: sans-serif;" x-text="item.nama"></p>
+                                <svg :id="'mass-barcode-' + idx" style="margin: 0 auto;"></svg>
+                                <p style="font-weight: bold; color: #2563eb; font-size: 14px; margin: 5px 0 0 0; font-family: sans-serif;" x-text="formatRupiah(item.jual)"></p>
+                                <p style="font-size: 9px; color: #64748b; text-transform: uppercase; margin: 2px 0 0 0; font-family: sans-serif;" x-text="profilToko.nama"></p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
             <!-- MODAL STRUK DENGAN ALAMAT TOKO -->
             <template x-if="showStrukModal">
                 <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -686,7 +720,6 @@
         }
         const db = firebase.firestore();
 
-        // Variabel global Audio Context agar terhindar dari blokir autoplay browser mobile
         let audioCtxGlobal = null;
 
         function warungApp() {
@@ -740,7 +773,6 @@
                     }
                 },
 
-                // Inisiator audio context saat ada gestur/sentuhan pengguna
                 inisiarkanAudio() {
                     try {
                         if (!audioCtxGlobal) {
@@ -752,7 +784,6 @@
                     } catch(e) {}
                 },
 
-                // ================= EFEK SUARA BEEP KASIR MINIMARKET (TIT-TIT) =================
                 bunyiBeep() {
                     try {
                         this.inisiarkanAudio();
@@ -776,9 +807,7 @@
                         };
 
                         const now = audioCtxGlobal.currentTime;
-                        // Nada "tit" pertama (High Pitch 2400Hz)
                         playTone(2400, now, 0.07);
-                        // Nada "tit" kedua (Higher Pitch 2700Hz)
                         playTone(2700, now + 0.08, 0.07);
 
                     } catch (e) {
@@ -786,7 +815,6 @@
                     }
                 },
 
-                // ================= LOGIKA VALIDASI LISENSI PUSAT DEVELOPER =================
                 async prosesLogin() {
                     this.inisiarkanAudio();
                     const kodeRaw = this.loginKodeToko ? this.loginKodeToko.trim() : '';
@@ -1056,6 +1084,22 @@
                     window.print();
                 },
 
+                // Fungsi untuk mencetak seluruh barcode stok secara massal
+                cetakSemuaBarcode() {
+                    setTimeout(() => {
+                        this.stokBarang.forEach((item, idx) => {
+                            try {
+                                JsBarcode("#mass-barcode-" + idx, item.sku || item.id.toString(), {
+                                    format: "CODE128", width: 2, height: 45, displayValue: true, fontSize: 13
+                                });
+                            } catch(e) {}
+                        });
+                        setTimeout(() => {
+                            window.print();
+                        }, 100);
+                    }, 50);
+                },
+
                 bukaScannerKamera() {
                     this.inisiarkanAudio();
                     this.showScannerModal = true;
@@ -1065,9 +1109,7 @@
                             { facingMode: "environment" },
                             { fps: 10, qrbox: { width: 250, height: 150 } },
                             (decodedText) => {
-                                // 🔊 Bunyi beep tit-tit minimarket instan saat barcode berhasil dibaca
                                 this.bunyiBeep();
-
                                 this.searchKasir = decodedText;
                                 const found = this.stokBarang.find(i => i.sku === decodedText || i.nama.toLowerCase().includes(decodedText.toLowerCase()));
                                 if (found) {
