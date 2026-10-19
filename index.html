@@ -69,6 +69,8 @@
             -webkit-backdrop-filter: blur(12px);
             border-top: 1px solid #e2e8f0;
         }
+
+        .print-only { display: none; }
         
         /* Pengaturan Cetak / Print Media */
         @media print {
@@ -76,7 +78,7 @@
             #printable-barcode-area, #printable-barcode-area * { visibility: visible; }
             #printable-barcode-area { position: absolute; left: 0; top: 0; width: 100%; }
 
-            #print-all-container, #print-all-container * { visibility: visible; }
+            .print-only, .print-only * { visibility: visible !important; }
             #print-all-container { 
                 position: absolute; 
                 left: 0; 
@@ -477,7 +479,6 @@
 
                     <div class="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
                         <template x-for="item in filteredStokBarang" :key="item.id">
-                            <!-- PERBAIKAN LAYOUT: Menggunakan flex-col / responsif agar tombol cetak, edit, dan hapus tidak terpotong di layar kecil -->
                             <div class="clean-card p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                                 <div class="flex items-center space-x-3.5">
                                     <div class="w-14 h-14 bg-slate-100 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-slate-200">
@@ -577,7 +578,6 @@
                                     <button @click="bukaStokStruk(trx)" class="text-brand-700 bg-brand-50 text-xs px-3 py-2 rounded-xl font-bold border flex items-center gap-1.5">
                                         <i data-lucide="receipt" class="w-4 h-4"></i> Struk
                                     </button>
-                                    <!-- FITUR PENGHAPUS DI LAPORAN KEUANGAN: Menghapus riwayat transaksi (Khusus Pemilik) -->
                                     <button x-show="userRole === 'pemilik'" @click="hapusTransaksi(trx.id)" class="text-rose-600 bg-rose-50 hover:bg-rose-100 text-xs px-3 py-2 rounded-xl font-bold border border-rose-200 flex items-center gap-1.5 transition">
                                         <i data-lucide="trash-2" class="w-4 h-4"></i> Hapus
                                     </button>
@@ -624,8 +624,8 @@
                 </div>
             </template>
 
-            <!-- AREA CETAK MASSAL TERSEMBUNYI (UNTUK CETAK SEMUA BARCODE SEKALIGUS) -->
-            <div id="print-all-container" style="display: none;">
+            <!-- AREA CETAK MASSAL TERSEMBUNYI -->
+            <div id="print-all-container" class="print-only">
                 <div style="padding: 10px;">
                     <h2 style="text-align: center; font-family: sans-serif; font-weight: bold; margin-bottom: 20px;">LABEL BARCODE - <span x-text="profilToko.nama"></span></h2>
                     <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center;">
@@ -716,7 +716,6 @@
 
     <!-- Script Logika & Firebase Realtime Sync -->
     <script>
-        // Konfigurasi Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyCuoBATHeQBLEx1fCzg8n4XkOGdR-N9yg0",
             authDomain: "warung-online-10009.firebaseapp.com",
@@ -821,9 +820,7 @@
                         playTone(2400, now, 0.07);
                         playTone(2700, now + 0.08, 0.07);
 
-                    } catch (e) {
-                        console.log("Audio API tidak dapat diputar:", e);
-                    }
+                    } catch (e) {}
                 },
 
                 async prosesLogin() {
@@ -929,13 +926,9 @@
                                   };
                               }
                           } else {
-                              this.stokBarang = [
-                                  { id: 1, sku: '899123456', nama: 'Beras Ramos 5kg', kategori: 'Sembako', modal: 60000, jual: 68000, stok: 12, gambar: '' },
-                                  { id: 2, sku: '899987654', nama: 'Minyak Goreng 1L', kategori: 'Sembako', modal: 15000, jual: 17500, stok: 3, gambar: '' }
-                              ];
+                              this.stokBarang = [];
                               this.riwayatTransaksi = [];
                               this.riwayatPengeluaran = [];
-                              this.simpanKeFirebase();
                           }
                       }, (error) => {
                           console.error("Gagal memuat data realtime:", error);
@@ -1165,7 +1158,6 @@
                             await this.html5QrCode.stop();
                             this.html5QrCode.clear();
                         } catch (e) {
-                            console.log("Scanner tidak aktif / dihentikan:", e);
                         } finally {
                             this.html5QrCode = null;
                         }
@@ -1212,6 +1204,15 @@
                     const total = this.totalKeranjang();
                     if ((this.uangBayar || 0) < total) { this.showNotification('Uang pembayaran kurang!', 'error'); return; }
 
+                    // Validasi kecukupan stok sebelum commit
+                    for (let c of this.keranjang) {
+                        const b = this.stokBarang.find(x => x.id === c.id);
+                        if (!b || b.stok < c.qty) {
+                            this.showNotification(`Stok barang '${c.nama}' tidak mencukupi!`, 'error');
+                            return;
+                        }
+                    }
+
                     this.keranjang.forEach(c => {
                         const b = this.stokBarang.find(x => x.id === c.id);
                         if (b) b.stok -= c.qty;
@@ -1238,6 +1239,14 @@
 
                 async prosesPembayaranQRIS() {
                     const total = this.totalKeranjang();
+
+                    for (let c of this.keranjang) {
+                        const b = this.stokBarang.find(x => x.id === c.id);
+                        if (!b || b.stok < c.qty) {
+                            this.showNotification(`Stok barang '${c.nama}' tidak mencukupi!`, 'error');
+                            return;
+                        }
+                    }
 
                     this.keranjang.forEach(c => {
                         const b = this.stokBarang.find(x => x.id === c.id);
