@@ -43,6 +43,7 @@
     </script>
     
     <style>
+        [x-cloak] { display: none !important; }
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
             -webkit-tap-highlight-color: transparent;
@@ -102,11 +103,11 @@
                     <div>
                         <label class="text-xs font-bold text-slate-600 uppercase">Password Akses</label>
                         <input type="password" x-model="loginPassword" placeholder="Masukkan password..." class="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-3.5 text-base font-bold text-slate-900 focus:outline-none focus:border-brand-600">
-                        <p class="text-xs text-slate-400 mt-1">Default Pemilik: <strong class="text-slate-600"> </strong> | Karyawan: <strong class="text-slate-600"> </strong></p>
+                        <p class="text-xs text-slate-400 mt-1"><strong class="text-slate-600">Verifikasi Lisensi Pusat Developer</strong></p>
                     </div>
 
-                    <button @click="prosesLogin()" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-extrabold py-4 rounded-xl text-base transition shadow-lg shadow-brand-600/20 active:scale-95">
-                        Masuk Aplikasi
+                    <button @click="prosesLogin()" :disabled="isLoadingLogin" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-extrabold py-4 rounded-xl text-base transition shadow-lg shadow-brand-600/20 active:scale-95 disabled:opacity-50">
+                        <span x-text="isLoadingLogin ? 'Memeriksa Lisensi...' : 'Masuk Aplikasi'"></span>
                     </button>
                 </div>
             </div>
@@ -694,6 +695,7 @@
                 loginKodeToko: '',
                 loginRole: 'karyawan',
                 loginPassword: '',
+                isLoadingLogin: false,
 
                 currentTab: 'dashboard',
                 searchStok: '',
@@ -735,22 +737,92 @@
                     }
                 },
 
-                prosesLogin() {
-                    const kodeBersih = this.loginKodeToko.trim().toLowerCase();
-                    if (!kodeBersih) {
-                        this.showNotification('Masukkan Kode Toko terlebih dahulu!', 'error');
+                // ================= EFEK SUARA BEEP KASIR =================
+                bunyiBeep() {
+                    try {
+                        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        const oscillator = audioCtx.createOscillator();
+                        const gainNode = audioCtx.createGain();
+
+                        oscillator.type = 'sine';
+                        oscillator.frequency.setValueAtTime(1800, audioCtx.currentTime);
+                        
+                        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.15);
+
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioCtx.destination);
+
+                        oscillator.start();
+                        oscillator.stop(audioCtx.currentTime + 0.15);
+                    } catch (e) {
+                        console.log("Audio API tidak didukung/diblokir:", e);
+                    }
+                },
+
+                // ================= LOGIKA VALIDASI LISENSI PUSAT DEVELOPER =================
+                async prosesLogin() {
+                    const kodeRaw = this.loginKodeToko ? this.loginKodeToko.trim() : '';
+                    const passRaw = this.loginPassword ? this.loginPassword.trim() : '';
+
+                    if (!kodeRaw) {
+                        this.showNotification('Masukkan Kode Toko / Lisensi!', 'error');
+                        return;
+                    }
+                    if (!passRaw) {
+                        this.showNotification('Masukkan Password Akses!', 'error');
                         return;
                     }
 
-                    if (this.loginRole === 'pemilik' && this.loginPassword === 'bos123') {
-                        this.setSesiBerhasil('pemilik', kodeBersih);
-                    } else if (this.loginRole === 'karyawan' && this.loginPassword === 'kasir123') {
-                        this.setSesiBerhasil('karyawan', kodeBersih);
-                    } else {
-                        this.showNotification('Password salah! (Gunakan bos123 / kasir123)', 'error');
+                    this.isLoadingLogin = true;
+
+                    try {
+                        let licenseDoc = await db.collection('developer_licenses').doc(kodeRaw).get();
+                        
+                        if (!licenseDoc.exists) {
+                            licenseDoc = await db.collection('developer_licenses').doc(kodeRaw.toLowerCase()).get();
+                        }
+
+                        if (!licenseDoc.exists) {
+                            this.showNotification('❌ Lisensi Toko tidak terdaftar! Hubungi Developer.', 'error');
+                            this.isLoadingLogin = false;
+                            return;
+                        }
+
+                        const licenseData = licenseDoc.data();
+
+                        if (licenseData.status !== 'active') {
+                            this.showNotification('⚠️ Lisensi toko ini dibekukan / tidak aktif.', 'error');
+                            this.isLoadingLogin = false;
+                            return;
+                        }
+
+                        if (licenseData.expiredDate) {
+                            const tglExpired = new Date(licenseData.expiredDate);
+                            const tglHariIni = new Date();
+                            if (tglHariIni > tglExpired) {
+                                this.showNotification('⏳ Masa aktif lisensi habis. Hubungi Developer.', 'error');
+                                this.isLoadingLogin = false;
+                                return;
+                            }
+                        }
+
+                        const passExpected = this.loginRole === 'pemilik' ? licenseData.passwordPemilik : licenseData.passwordKaryawan;
+
+                        if (passRaw === passExpected) {
+                            this.setSesiBerhasil(this.loginRole, kodeRaw.toLowerCase());
+                        } else {
+                            this.showNotification('Password Akses Salah!', 'error');
+                        }
+
+                    } catch (e) {
+                        console.error("Gagal verifikasi lisensi:", e);
+                        this.showNotification('Gagal terhubung ke Firebase pusat (Cek Koneksi)', 'error');
+                    } finally {
+                        this.isLoadingLogin = false;
+                        this.loginPassword = '';
                     }
-                    this.loginPassword = '';
-                },
+                },                     
 
                 setSesiBerhasil(role, kode) {
                     this.isLoggedIn = true;
@@ -965,6 +1037,9 @@
                             { facingMode: "environment" },
                             { fps: 10, qrbox: { width: 250, height: 150 } },
                             (decodedText) => {
+                                // 🔊 Bunyi beep instan saat barcode berhasil dibaca
+                                this.bunyiBeep();
+
                                 this.searchKasir = decodedText;
                                 const found = this.stokBarang.find(i => i.sku === decodedText || i.nama.toLowerCase().includes(decodedText.toLowerCase()));
                                 if (found) {
@@ -982,24 +1057,24 @@
                     }, 100);
                 },
 
-               async tutupScannerKamera() {
-    if (this.html5QrCode) {
-        try {
-            const state = this.html5QrCode.getState();
-            if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-                await this.html5QrCode.stop();
-            }
-        } catch (e) {
-            console.log("Scanner tidak aktif:", e);
-        } finally {
-            try {
-                this.html5QrCode.clear();
-            } catch (e) {}
-            this.html5QrCode = null;
-        }
-    }
-    this.showScannerModal = false;
-},
+                async tutupScannerKamera() {
+                    if (this.html5QrCode) {
+                        try {
+                            const state = this.html5QrCode.getState();
+                            if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+                                await this.html5QrCode.stop();
+                            }
+                        } catch (e) {
+                            console.log("Scanner tidak aktif:", e);
+                        } finally {
+                            try {
+                                this.html5QrCode.clear();
+                            } catch (e) {}
+                            this.html5QrCode = null;
+                        }
+                    }
+                    this.showScannerModal = false;
+                },
 
                 get filteredStokKasir() {
                     if (!this.searchKasir) return this.stokBarang;
