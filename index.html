@@ -4,7 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kasirku - Aplikasi Pembukuan & Stok Toko</title>
-    
+    <!-- Manifest & PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <!-- Lucide Icons -->
@@ -472,7 +477,8 @@
 
                     <div class="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
                         <template x-for="item in filteredStokBarang" :key="item.id">
-                            <div class="clean-card p-4 rounded-2xl flex items-center justify-between">
+                            <!-- PERBAIKAN LAYOUT: Menggunakan flex-col / responsif agar tombol cetak, edit, dan hapus tidak terpotong di layar kecil -->
+                            <div class="clean-card p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                                 <div class="flex items-center space-x-3.5">
                                     <div class="w-14 h-14 bg-slate-100 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-slate-200">
                                         <template x-if="item.gambar">
@@ -494,7 +500,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="flex flex-col items-end gap-2">
+                                <div class="flex w-full sm:w-auto justify-between sm:flex-col items-center sm:items-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                                     <span :class="item.stok < 5 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-slate-100 text-slate-800 border-slate-200'" class="text-sm font-black px-3 py-1 rounded-lg border" x-text="item.stok + ' pcs'"></span>
                                     
                                     <div class="flex items-center space-x-1.5">
@@ -571,7 +577,10 @@
                                     <button @click="bukaStokStruk(trx)" class="text-brand-700 bg-brand-50 text-xs px-3 py-2 rounded-xl font-bold border flex items-center gap-1.5">
                                         <i data-lucide="receipt" class="w-4 h-4"></i> Struk
                                     </button>
-                                    <button x-show="userRole === 'pemilik'" @click="hapusTransaksi(trx.id)" class="text-slate-400 hover:text-rose-600 p-1.5"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                                    <!-- FITUR PENGHAPUS DI LAPORAN KEUANGAN: Menghapus riwayat transaksi (Khusus Pemilik) -->
+                                    <button x-show="userRole === 'pemilik'" @click="hapusTransaksi(trx.id)" class="text-rose-600 bg-rose-50 hover:bg-rose-100 text-xs px-3 py-2 rounded-xl font-bold border border-rose-200 flex items-center gap-1.5 transition">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i> Hapus
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -641,22 +650,24 @@
                             <p class="text-xs text-slate-600 font-medium leading-snug mt-1" x-text="profilToko.alamat || 'Jl. Contoh Alamat No. 123'"></p>
                             <p class="text-xs text-slate-500 mt-0.5" x-text="'Telp: ' + (profilToko.telp || '08123456789')"></p>
                             <div class="border-t border-slate-200 my-2"></div>
-                            <p class="text-xs text-slate-400" x-text="selectedTrx.tanggal"></p>
-                            <span class="text-[10px] font-bold px-2 py-0.5 bg-brand-50 text-brand-700 rounded mt-1 inline-block" x-text="'Pembayaran: ' + (selectedTrx.metode || 'Tunai').toUpperCase()"></span>
+                            <p class="text-xs text-slate-400" x-text="selectedTrx ? selectedTrx.tanggal : ''"></p>
+                            <span class="text-[10px] font-bold px-2 py-0.5 bg-brand-50 text-brand-700 rounded mt-1 inline-block" x-text="'Pembayaran: ' + (selectedTrx && selectedTrx.metode ? selectedTrx.metode : 'Tunai').toUpperCase()"></span>
                         </div>
                         <div class="space-y-2 max-h-48 overflow-y-auto text-sm pr-1">
-                            <template x-for="item in selectedTrx.items" :key="item.id">
-                                <div class="flex justify-between">
-                                    <span class="font-bold" x-text="item.nama + ' (' + item.qty + 'x)'"></span>
-                                    <span class="font-black" x-text="formatRupiah(item.qty * item.jual)"></span>
-                                </div>
+                            <template x-if="selectedTrx && selectedTrx.items">
+                                <template x-for="item in selectedTrx.items" :key="item.id">
+                                    <div class="flex justify-between">
+                                        <span class="font-bold" x-text="item.nama + ' (' + item.qty + 'x)'"></span>
+                                        <span class="font-black" x-text="formatRupiah(item.qty * item.jual)"></span>
+                                    </div>
+                                </template>
                             </template>
                         </div>
                         <div class="border-t border-dashed pt-3 space-y-1.5 text-sm">
                             <div class="flex justify-between font-black text-base">
-                                <span>TOTAL</span><span class="text-brand-600" x-text="formatRupiah(selectedTrx.total)"></span>
+                                <span>TOTAL</span><span class="text-brand-600" x-text="formatRupiah(selectedTrx ? selectedTrx.total : 0)"></span>
                             </div>
-                            <template x-if="selectedTrx.metode === 'tunai'">
+                            <template x-if="selectedTrx && selectedTrx.metode === 'tunai'">
                                 <div>
                                     <div class="flex justify-between text-slate-500">
                                         <span>BAYAR</span><span x-text="formatRupiah(selectedTrx.bayar)"></span>
@@ -844,7 +855,7 @@
                             return;
                         }
 
-                        const licenseData = licenseDoc.data();
+                        const licenseData = licenseDoc.data() || {};
 
                         if (licenseData.status !== 'active') {
                             this.showNotification('⚠️ Lisensi toko ini dibekukan / tidak aktif.', 'error');
@@ -901,15 +912,21 @@
                 },
 
                 dengarkanDataRealtime() {
+                    if (!this.kodeToko) return;
                     db.collection('kasirku_toko').doc(this.kodeToko)
                       .onSnapshot((doc) => {
                           if (doc.exists) {
-                              const data = doc.data();
-                              this.stokBarang = data.stokBarang || [];
-                              this.riwayatTransaksi = data.riwayatTransaksi || [];
-                              this.riwayatPengeluaran = data.riwayatPengeluaran || [];
-                              if (data.profilToko) {
-                                  this.profilToko = data.profilToko;
+                              const data = doc.data() || {};
+                              this.stokBarang = Array.isArray(data.stokBarang) ? data.stokBarang : [];
+                              this.riwayatTransaksi = Array.isArray(data.riwayatTransaksi) ? data.riwayatTransaksi : [];
+                              this.riwayatPengeluaran = Array.isArray(data.riwayatPengeluaran) ? data.riwayatPengeluaran : [];
+                              if (data.profilToko && typeof data.profilToko === 'object') {
+                                  this.profilToko = {
+                                      nama: data.profilToko.nama || 'Kasirku',
+                                      alamat: data.profilToko.alamat || '',
+                                      telp: data.profilToko.telp || '',
+                                      qrisImg: data.profilToko.qrisImg || ''
+                                  };
                               }
                           } else {
                               this.stokBarang = [
@@ -927,6 +944,7 @@
                 },
 
                 async simpanKeFirebase() {
+                    if (!this.kodeToko) return;
                     try {
                         const dataBersih = JSON.parse(JSON.stringify({
                             stokBarang: this.stokBarang || [],
@@ -957,33 +975,42 @@
                     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(angka || 0);
                 },
 
-                stokMenipisCount() { return this.stokBarang.filter(i => i.stok < 5).length; },
-                totalModalStok() { return this.stokBarang.reduce((acc, item) => acc + (item.modal * item.stok), 0); },
+                stokMenipisCount() { 
+                    return (this.stokBarang || []).filter(i => (i.stok || 0) < 5).length; 
+                },
+                totalModalStok() { 
+                    return (this.stokBarang || []).reduce((acc, item) => acc + ((item.modal || 0) * (item.stok || 0)), 0); 
+                },
                 riwayatTransaksiHariIni() {
                     const today = new Date().toLocaleDateString('id-ID');
-                    return this.riwayatTransaksi.filter(t => t.tanggal.includes(today));
+                    return (this.riwayatTransaksi || []).filter(t => t.tanggal && t.tanggal.includes(today));
                 },
-                pendapatanHariIni() { return this.riwayatTransaksiHariIni().reduce((acc, t) => acc + t.total, 0); },
+                pendapatanHariIni() { 
+                    return this.riwayatTransaksiHariIni().reduce((acc, t) => acc + (t.total || 0), 0); 
+                },
                 pengeluaranHariIni() {
                     const today = new Date().toLocaleDateString('id-ID');
-                    return this.riwayatPengeluaran.filter(p => p.tanggal.includes(today)).reduce((acc, p) => acc + p.jumlah, 0);
+                    return (this.riwayatPengeluaran || []).filter(p => p.tanggal && p.tanggal.includes(today)).reduce((acc, p) => acc + (p.jumlah || 0), 0);
                 },
                 keuntunganHariIni() {
                     let untung = 0;
                     this.riwayatTransaksiHariIni().forEach(t => {
-                        t.items.forEach(i => {
-                            const b = this.stokBarang.find(x => x.id === i.id);
-                            const modal = b ? b.modal : 0;
-                            untung += (i.jual - modal) * i.qty;
+                        (t.items || []).forEach(i => {
+                            const modal = i.modal !== undefined ? i.modal : (this.stokBarang.find(x => x.id === i.id)?.modal || 0);
+                            untung += ((i.jual || 0) - modal) * (i.qty || 1);
                         });
                     });
                     return untung - this.pengeluaranHariIni();
                 },
 
                 get filteredStokBarang() {
-                    if (!this.searchStok) return this.stokBarang;
+                    if (!this.searchStok) return this.stokBarang || [];
                     const q = this.searchStok.toLowerCase();
-                    return this.stokBarang.filter(i => i.nama.toLowerCase().includes(q) || i.kategori.toLowerCase().includes(q) || (i.sku && i.sku.toLowerCase().includes(q)));
+                    return (this.stokBarang || []).filter(i => 
+                        (i.nama && i.nama.toLowerCase().includes(q)) || 
+                        (i.kategori && i.kategori.toLowerCase().includes(q)) || 
+                        (i.sku && i.sku.toLowerCase().includes(q))
+                    );
                 },
 
                 handleFileUpload(event) {
@@ -1084,46 +1111,51 @@
                     window.print();
                 },
 
-                // Fungsi untuk mencetak seluruh barcode stok secara massal
                 cetakSemuaBarcode() {
-                    setTimeout(() => {
-                        this.stokBarang.forEach((item, idx) => {
-                            try {
-                                JsBarcode("#mass-barcode-" + idx, item.sku || item.id.toString(), {
-                                    format: "CODE128", width: 2, height: 45, displayValue: true, fontSize: 13
-                                });
-                            } catch(e) {}
-                        });
+                    this.$nextTick(() => {
                         setTimeout(() => {
-                            window.print();
-                        }, 100);
-                    }, 50);
+                            this.stokBarang.forEach((item, idx) => {
+                                try {
+                                    JsBarcode("#mass-barcode-" + idx, item.sku || item.id.toString(), {
+                                        format: "CODE128", width: 2, height: 45, displayValue: true, fontSize: 13
+                                    });
+                                } catch(e) {}
+                            });
+                            setTimeout(() => {
+                                window.print();
+                            }, 150);
+                        }, 50);
+                    });
                 },
 
                 bukaScannerKamera() {
                     this.inisiarkanAudio();
                     this.showScannerModal = true;
                     setTimeout(() => {
-                        this.html5QrCode = new Html5Qrcode("reader");
-                        this.html5QrCode.start(
-                            { facingMode: "environment" },
-                            { fps: 10, qrbox: { width: 250, height: 150 } },
-                            (decodedText) => {
-                                this.bunyiBeep();
-                                this.searchKasir = decodedText;
-                                const found = this.stokBarang.find(i => i.sku === decodedText || i.nama.toLowerCase().includes(decodedText.toLowerCase()));
-                                if (found) {
-                                    this.tambahKeKeranjang(found);
-                                    this.showNotification('Barang ditemukan: ' + found.nama);
-                                } else {
-                                    this.showNotification('Barcode discan: ' + decodedText, 'error');
-                                }
-                                this.tutupScannerKamera();
-                            },
-                            (error) => {}
-                        ).catch(err => {
-                            this.showNotification('Gagal mengakses kamera HP', 'error');
-                        });
+                        try {
+                            this.html5QrCode = new Html5Qrcode("reader");
+                            this.html5QrCode.start(
+                                { facingMode: "environment" },
+                                { fps: 10, qrbox: { width: 250, height: 150 } },
+                                (decodedText) => {
+                                    this.bunyiBeep();
+                                    this.searchKasir = decodedText;
+                                    const found = this.stokBarang.find(i => i.sku === decodedText || (i.nama && i.nama.toLowerCase().includes(decodedText.toLowerCase())));
+                                    if (found) {
+                                        this.tambahKeKeranjang(found);
+                                        this.showNotification('Barang ditemukan: ' + found.nama);
+                                    } else {
+                                        this.showNotification('Barcode discan: ' + decodedText, 'error');
+                                    }
+                                    this.tutupScannerKamera();
+                                },
+                                (error) => {}
+                            ).catch(err => {
+                                this.showNotification('Gagal mengakses kamera HP', 'error');
+                            });
+                        } catch (e) {
+                            console.error("Scanner Error:", e);
+                        }
                     }, 100);
                 },
 
@@ -1133,7 +1165,7 @@
                             await this.html5QrCode.stop();
                             this.html5QrCode.clear();
                         } catch (e) {
-                            console.log("Scanner tidak aktif:", e);
+                            console.log("Scanner tidak aktif / dihentikan:", e);
                         } finally {
                             this.html5QrCode = null;
                         }
@@ -1142,9 +1174,13 @@
                 },
 
                 get filteredStokKasir() {
-                    if (!this.searchKasir) return this.stokBarang;
+                    if (!this.searchKasir) return this.stokBarang || [];
                     const q = this.searchKasir.toLowerCase();
-                    return this.stokBarang.filter(i => i.nama.toLowerCase().includes(q) || i.kategori.toLowerCase().includes(q) || (i.sku && i.sku.toLowerCase().includes(q)));
+                    return (this.stokBarang || []).filter(i => 
+                        (i.nama && i.nama.toLowerCase().includes(q)) || 
+                        (i.kategori && i.kategori.toLowerCase().includes(q)) || 
+                        (i.sku && i.sku.toLowerCase().includes(q))
+                    );
                 },
 
                 tambahKeKeranjang(item) {
@@ -1154,14 +1190,14 @@
                         if (exist.qty < item.stok) exist.qty++;
                         else this.showNotification('Batas stok tercapai!', 'error');
                     } else {
-                        this.keranjang.push({ ...item, qty: 1 });
+                        this.keranjang.push({ ...item, modal: item.modal || 0, qty: 1 });
                     }
                 },
 
                 tambahQtyKeranjang(index) {
                     const c = this.keranjang[index];
                     const b = this.stokBarang.find(x => x.id === c.id);
-                    if (c.qty < b.stok) c.qty++; else this.showNotification('Stok kurang!', 'error');
+                    if (b && c.qty < b.stok) c.qty++; else this.showNotification('Stok kurang!', 'error');
                 },
 
                 kurangiQtyKeranjang(index) {
@@ -1169,7 +1205,7 @@
                     else this.keranjang.splice(index, 1);
                 },
 
-                totalKeranjang() { return this.keranjang.reduce((acc, c) => acc + (c.jual * c.qty), 0); },
+                totalKeranjang() { return this.keranjang.reduce((acc, c) => acc + ((c.jual || 0) * c.qty), 0); },
                 hitungKembalian() { return (this.uangBayar || 0) - this.totalKeranjang(); },
 
                 async prosesPembayaran() {
@@ -1184,7 +1220,7 @@
                     const transaksiBaru = {
                         id: Date.now(),
                         tanggal: new Date().toLocaleString('id-ID'),
-                        items: [...this.keranjang],
+                        items: this.keranjang.map(i => ({ ...i, modal: i.modal || 0 })),
                         total: total,
                         bayar: this.uangBayar,
                         kembali: this.hitungKembalian(),
@@ -1211,7 +1247,7 @@
                     const transaksiBaru = {
                         id: Date.now(),
                         tanggal: new Date().toLocaleString('id-ID'),
-                        items: [...this.keranjang],
+                        items: this.keranjang.map(i => ({ ...i, modal: i.modal || 0 })),
                         total: total,
                         bayar: total,
                         kembali: 0,
@@ -1244,8 +1280,11 @@
 
                 async hapusTransaksi(id) {
                     if (this.userRole !== 'pemilik') return;
-                    this.riwayatTransaksi = this.riwayatTransaksi.filter(t => t.id !== id);
-                    await this.simpanKeFirebase();
+                    if (confirm('Yakin ingin menghapus riwayat transaksi ini?')) {
+                        this.riwayatTransaksi = this.riwayatTransaksi.filter(t => t.id !== id);
+                        await this.simpanKeFirebase();
+                        this.showNotification('Riwayat transaksi dihapus', 'error');
+                    }
                 },
 
                 confirmResetData() {
@@ -1260,8 +1299,8 @@
 
                 exportCSV() {
                     let csv = "ID,Tanggal,Metode,Barang,Qty,Harga,Subtotal,Total\n";
-                    this.riwayatTransaksi.forEach(t => {
-                        t.items.forEach(i => {
+                    (this.riwayatTransaksi || []).forEach(t => {
+                        (t.items || []).forEach(i => {
                             csv += `"${t.id}","${t.tanggal}","${t.metode || 'tunai'}","${i.nama}",${i.qty},${i.jual},${i.qty*i.jual},${t.total}\n`;
                         });
                     });
@@ -1285,6 +1324,7 @@
                 },
 
                 async cetakStrukBluetooth(trx) {
+                    if (!trx) return;
                     if (!this.btCharacteristic) { await this.connectBluetooth(); if (!this.btCharacteristic) return; }
                     try {
                         const enc = new TextEncoder();
@@ -1297,7 +1337,7 @@
                         if (telpToko) text += `${telpToko}\n`;
                         text += `--------------------------------\n${trx.tanggal}\nMetode: ${(trx.metode || 'tunai').toUpperCase()}\n--------------------------------\n`;
 
-                        trx.items.forEach(i => { text += `${i.nama}\n  ${i.qty} x ${i.jual} = ${i.qty*i.jual}\n`; });
+                        (trx.items || []).forEach(i => { text += `${i.nama}\n  ${i.qty} x ${i.jual} = ${i.qty*i.jual}\n`; });
                         text += `--------------------------------\nTOTAL: Rp ${trx.total}\n`;
                         if (trx.metode !== 'qris') {
                             text += `BAYAR: Rp ${trx.bayar}\nKEMBALI: Rp ${trx.kembali}\n`;
