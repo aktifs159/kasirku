@@ -686,6 +686,9 @@
         }
         const db = firebase.firestore();
 
+        // Variabel global Audio Context agar terhindar dari blokir autoplay browser mobile
+        let audioCtxGlobal = null;
+
         function warungApp() {
             return {
                 isLoggedIn: localStorage.getItem('warung_login') === 'true',
@@ -737,31 +740,55 @@
                     }
                 },
 
-                // ================= EFEK SUARA BEEP KASIR =================
+                // Inisiator audio context saat ada gestur/sentuhan pengguna
+                inisiarkanAudio() {
+                    try {
+                        if (!audioCtxGlobal) {
+                            audioCtxGlobal = new (window.AudioContext || window.webkitAudioContext)();
+                        }
+                        if (audioCtxGlobal.state === 'suspended') {
+                            audioCtxGlobal.resume();
+                        }
+                    } catch(e) {}
+                },
+
+                // ================= EFEK SUARA BEEP KASIR MINIMARKET (TIT-TIT) =================
                 bunyiBeep() {
                     try {
-                        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                        const oscillator = audioCtx.createOscillator();
-                        const gainNode = audioCtx.createGain();
+                        this.inisiarkanAudio();
+                        if (!audioCtxGlobal) return;
 
-                        oscillator.type = 'sine';
-                        oscillator.frequency.setValueAtTime(1800, audioCtx.currentTime);
-                        
-                        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                        gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.15);
+                        const playTone = (freq, startTime, duration) => {
+                            const osc = audioCtxGlobal.createOscillator();
+                            const gain = audioCtxGlobal.createGain();
 
-                        oscillator.connect(gainNode);
-                        gainNode.connect(audioCtx.destination);
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(freq, startTime);
 
-                        oscillator.start();
-                        oscillator.stop(audioCtx.currentTime + 0.15);
+                            gain.gain.setValueAtTime(0.2, startTime);
+                            gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+                            osc.connect(gain);
+                            gain.connect(audioCtxGlobal.destination);
+
+                            osc.start(startTime);
+                            osc.stop(startTime + duration);
+                        };
+
+                        const now = audioCtxGlobal.currentTime;
+                        // Nada "tit" pertama (High Pitch 2400Hz)
+                        playTone(2400, now, 0.07);
+                        // Nada "tit" kedua (Higher Pitch 2700Hz)
+                        playTone(2700, now + 0.08, 0.07);
+
                     } catch (e) {
-                        console.log("Audio API tidak didukung/diblokir:", e);
+                        console.log("Audio API tidak dapat diputar:", e);
                     }
                 },
 
                 // ================= LOGIKA VALIDASI LISENSI PUSAT DEVELOPER =================
                 async prosesLogin() {
+                    this.inisiarkanAudio();
                     const kodeRaw = this.loginKodeToko ? this.loginKodeToko.trim() : '';
                     const passRaw = this.loginPassword ? this.loginPassword.trim() : '';
 
@@ -1030,6 +1057,7 @@
                 },
 
                 bukaScannerKamera() {
+                    this.inisiarkanAudio();
                     this.showScannerModal = true;
                     setTimeout(() => {
                         this.html5QrCode = new Html5Qrcode("reader");
@@ -1037,7 +1065,7 @@
                             { facingMode: "environment" },
                             { fps: 10, qrbox: { width: 250, height: 150 } },
                             (decodedText) => {
-                                // 🔊 Bunyi beep instan saat barcode berhasil dibaca
+                                // 🔊 Bunyi beep tit-tit minimarket instan saat barcode berhasil dibaca
                                 this.bunyiBeep();
 
                                 this.searchKasir = decodedText;
@@ -1060,16 +1088,11 @@
                 async tutupScannerKamera() {
                     if (this.html5QrCode) {
                         try {
-                            const state = this.html5QrCode.getState();
-                            if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-                                await this.html5QrCode.stop();
-                            }
+                            await this.html5QrCode.stop();
+                            this.html5QrCode.clear();
                         } catch (e) {
                             console.log("Scanner tidak aktif:", e);
                         } finally {
-                            try {
-                                this.html5QrCode.clear();
-                            } catch (e) {}
                             this.html5QrCode = null;
                         }
                     }
