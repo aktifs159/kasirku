@@ -69,50 +69,74 @@
             -webkit-backdrop-filter: blur(12px);
             border-top: 1px solid #e2e8f0;
         }
-
         .print-only { display: none; }
-        
-        /* Pengaturan Cetak / Print Media */
         @media print {
             body * { visibility: hidden; }
             #printable-barcode-area, #printable-barcode-area * { visibility: visible; }
             #printable-barcode-area { position: absolute; left: 0; top: 0; width: 100%; }
-
             .print-only, .print-only * { visibility: visible !important; }
             #print-all-container { 
-                position: absolute; 
-                left: 0; 
-                top: 0; 
-                width: 100%; 
-                display: block !important;
-                background: white;
+                position: absolute; left: 0; top: 0; width: 100%; display: block !important; background: white;
             }
         }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 antialiased min-h-screen pb-28" x-data="warungApp()">
 
-    <!-- ================= HALAMAN LOGIN ================= -->
+    <!-- ================= INDIKATOR STATUS KONEKSI ================= -->
+    <div class="bg-slate-900 text-white text-[11px] font-bold px-3 py-1 flex justify-between items-center z-50 sticky top-0">
+        <div class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full" :class="isOnlineNetwork ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'"></span>
+            <span x-text="isOnlineNetwork ? '🟢 Terhubung Internet (Online)' : '🔴 Tanpa Internet (Offline Mode)'"></span>
+        </div>
+        <span x-show="offlineQueue.length > 0" class="bg-amber-500 text-slate-900 px-2 py-0.5 rounded text-[10px]" x-text="offlineQueue.length + ' Data Menunggu Sinkron'"></span>
+    </div>
+
+    <!-- ================= HALAMAN PEMILIHAN MODE / LOGIN ================= -->
     <template x-if="!isLoggedIn">
-        <div class="min-h-screen flex items-center justify-center p-4 bg-slate-900">
+        <div class="min-h-[92vh] flex items-center justify-center p-4 bg-slate-900">
             <div class="bg-white rounded-3xl p-6 w-full max-w-sm space-y-5 shadow-2xl">
                 <div class="text-center space-y-2">
                     <div class="w-14 h-14 rounded-2xl bg-brand-600 flex items-center justify-center text-white mx-auto shadow-lg shadow-brand-500/30">
                         <i data-lucide="store" class="w-8 h-8"></i>
                     </div>
                     <h1 class="font-black text-3xl text-slate-900 tracking-tight">Kasirku</h1>
-                    <p class="text-sm text-slate-500 font-medium">Masukkan kode toko & akses masuk aplikasi</p>
+                    <p class="text-sm text-slate-500 font-medium">Pilih mode penggunaan aplikasi</p>
                 </div>
 
-                <div class="space-y-4">
+                <!-- PILIHAN MODE -->
+                <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
+                    <button @click="appMode = 'offline'" :class="appMode === 'offline' ? 'bg-white text-slate-900 shadow-sm font-extrabold' : 'text-slate-500 font-bold'" class="py-2.5 rounded-xl text-xs transition">📱 Offline (Lokal)</button>
+                    <button @click="appMode = 'online'" :class="appMode === 'online' ? 'bg-brand-600 text-white shadow-sm font-extrabold' : 'text-slate-500 font-bold'" class="py-2.5 rounded-xl text-xs transition">☁️ Online (Sinkron kasir)</button>
+                </div>
+
+                <!-- FORM MODE OFFLINE (LOKAL) -->
+                <div x-show="appMode === 'offline'" class="space-y-4">
+                    <div class="bg-amber-50 border border-amber-200 p-3.5 rounded-xl text-xs text-amber-800 font-medium">
+                        💡 <strong>Mode Offline Lokal:</strong> Bisa masuk tanpa internet. Data tersimpan di HP ini.
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 uppercase">Nama Toko Anda</label>
+                        <input type="text" x-model="offlineNamaToko" placeholder="Contoh: Toko Berkah Mandiri" class="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-3.5 text-base font-bold text-slate-900 focus:outline-none focus:border-brand-600">
+                    </div>
+                    <button @click="masukModeOffline()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold py-4 rounded-xl text-base transition shadow-lg active:scale-95">
+                        Mulai Mode Offline
+                    </button>
+                </div>
+
+                <!-- FORM MODE ONLINE (TERHUBUNG BOS & KARYAWAN) -->
+                <div x-show="appMode === 'online'" class="space-y-4">
+                    <div class="bg-blue-50 border border-blue-200 p-3.5 rounded-xl text-xs text-blue-900 font-medium">
+                        <p>🔒 <strong>Mode Online:</strong> Tetap bisa login walau internet terputus (data otomatis sinkron saat internet kembali).</p>
+                        <p class="text-slate-600 pt-1 border-t border-blue-200">ℹ️ <em>Silahkan hubungi wa <strong>081317584703 (Admin)</strong> untuk mengaktifkan kasir online Anda agar bisa login.</em></p>
+                    </div>
                     <div>
                         <label class="text-xs font-bold text-slate-600 uppercase">Kode Toko / Cabang</label>
                         <input type="text" x-model="loginKodeToko" placeholder="Contoh: Toko-yosi-01" class="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-3.5 text-base font-bold text-slate-900 focus:outline-none focus:border-brand-600 uppercase">
-                        <p class="text-xs text-slate-400 mt-1">Harus sama antara Bos dan Karyawan di satu toko.</p>
                     </div>
 
                     <div>
-                        <label class="text-xs font-bold text-slate-600 uppercase">Pilih Login Sebagai</label>
+                        <label class="text-xs font-bold text-slate-600 uppercase">Login Sebagai</label>
                         <select x-model="loginRole" class="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-3.5 text-base font-bold text-slate-900 focus:outline-none focus:border-brand-600">
                             <option value="pemilik">👑 Pemilik (Admin Utama)</option>
                             <option value="karyawan">🧑‍💼 Karyawan / Kasir</option>
@@ -120,13 +144,12 @@
                     </div>
 
                     <div>
-                        <label class="text-xs font-bold text-slate-600 uppercase">Password Akses</label>
+                        <label class="text-xs font-bold text-slate-600 uppercase">Password Lisensi / Akses</label>
                         <input type="password" x-model="loginPassword" placeholder="Masukkan password..." class="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-3.5 text-base font-bold text-slate-900 focus:outline-none focus:border-brand-600">
-                        <p class="text-xs text-slate-400 mt-1"><strong class="text-slate-600">Verifikasi Lisensi Pusat Developer</strong></p>
                     </div>
 
-                    <button @click="prosesLogin()" :disabled="isLoadingLogin" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-extrabold py-4 rounded-xl text-base transition shadow-lg shadow-brand-600/20 active:scale-95 disabled:opacity-50">
-                        <span x-text="isLoadingLogin ? 'Memeriksa Lisensi...' : 'Masuk Aplikasi'"></span>
+                    <button @click="prosesLoginOnline()" :disabled="isLoadingLogin" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-extrabold py-4 rounded-xl text-base transition shadow-lg shadow-brand-600/20 active:scale-95 disabled:opacity-50">
+                        <span x-text="isLoadingLogin ? 'Memeriksa...' : 'Masuk Mode Terhubung (Online)'"></span>
                     </button>
                 </div>
             </div>
@@ -135,7 +158,7 @@
 
     <!-- ================= APLIKASI UTAMA ================= -->
     <div x-show="isLoggedIn" x-cloak>
-        <header class="sticky top-0 z-40 bg-white border-b border-slate-200 px-4 py-3.5 shadow-sm">
+        <header class="sticky top-7 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3.5 shadow-sm">
             <div class="max-w-md mx-auto flex items-center justify-between">
                 <div class="flex items-center space-x-3">
                     <div class="w-11 h-11 rounded-2xl bg-brand-600 flex items-center justify-center text-white shadow-md shadow-brand-500/30 font-black text-xl">
@@ -144,18 +167,15 @@
                     <div>
                         <h1 class="font-extrabold text-lg tracking-tight text-slate-900 flex items-center gap-1.5">
                             <span x-text="profilToko.nama || 'Kasirku'"></span>
-                            <span class="text-xs font-bold px-2.5 py-0.5 rounded-md" :class="userRole === 'pemilik' ? 'bg-amber-100 text-amber-800' : 'bg-brand-100 text-brand-800'" x-text="userRole === 'pemilik' ? 'PEMILIK' : 'KARYAWAN'"></span>
+                            <span class="text-xs font-bold px-2.5 py-0.5 rounded-md" :class="isModeOffline ? 'bg-slate-200 text-slate-700' : (userRole === 'pemilik' ? 'bg-amber-100 text-amber-800' : 'bg-brand-100 text-brand-800')" x-text="isModeOffline ? 'OFFLINE' : (userRole === 'pemilik' ? 'PEMILIK' : 'KARYAWAN')"></span>
                         </h1>
-                        <p class="text-xs text-slate-500 font-medium truncate max-w-[160px]" x-text="'Toko: ' + kodeToko"></p>
+                        <p class="text-xs text-slate-500 font-medium truncate max-w-[160px]" x-text="isModeOffline ? 'Mode Lokal' : ('Toko: ' + kodeToko)"></p>
                     </div>
                 </div>
                 
                 <div class="flex items-center gap-1.5">
                     <button @click="connectBluetooth()" :class="btDeviceConnected ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'" class="p-2.5 rounded-xl text-sm font-bold border transition" title="Printer Bluetooth">
                         <i data-lucide="printer" class="w-5 h-5"></i>
-                    </button>
-                    <button x-show="userRole === 'pemilik'" @click="confirmResetData()" class="p-2.5 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-700 border border-slate-200 transition" title="Reset Data">
-                        <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
                     </button>
                     <button @click="logout()" class="p-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition" title="Keluar Akun">
                         <i data-lucide="log-out" class="w-5 h-5"></i>
@@ -169,7 +189,7 @@
             <!-- Notifikasi Floating -->
             <template x-if="notification.show">
                 <div :class="notification.type === 'success' ? 'bg-slate-900 text-white border-slate-800' : 'bg-rose-600 text-white border-rose-700'" 
-                     class="fixed top-16 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-sm border text-base font-semibold px-4 py-3.5 rounded-2xl shadow-xl flex items-center justify-between transition animate-bounce">
+                     class="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-sm border text-base font-semibold px-4 py-3.5 rounded-2xl shadow-xl flex items-center justify-between transition">
                     <div class="flex items-center space-x-3">
                         <i :data-lucide="notification.type === 'success' ? 'check-circle' : 'alert-circle'" class="w-5 h-5 text-indigo-400"></i>
                         <span x-text="notification.message"></span>
@@ -195,7 +215,7 @@
                     <div class="grid grid-cols-2 gap-3 pt-4 border-t border-white/20">
                         <div>
                             <p class="text-xs text-brand-100 font-medium">Laba Bersih Estimasi</p>
-                            <p class="text-lg font-extrabold text-white mt-0.5" x-text="userRole === 'pemilik' ? formatRupiah(keuntunganHariIni()) : '🔒 Khusus Pemilik'"></p>
+                            <p class="text-lg font-extrabold text-white mt-0.5" x-text="isModeOffline || userRole === 'pemilik' ? formatRupiah(keuntunganHariIni()) : '🔒 Khusus Pemilik'"></p>
                         </div>
                         <div>
                             <p class="text-xs text-brand-100 font-medium">Pengeluaran Hari Ini</p>
@@ -204,8 +224,8 @@
                     </div>
                 </div>
 
-                <!-- Pengaturan Profil Toko & QRIS (Khusus Pemilik) -->
-                <div x-show="userRole === 'pemilik'" class="clean-card p-4.5 rounded-2xl space-y-3">
+                <!-- Pengaturan Profil Toko & QRIS -->
+                <div x-show="isModeOffline || userRole === 'pemilik'" class="clean-card p-4.5 rounded-2xl space-y-3">
                     <div class="flex justify-between items-center border-b pb-2">
                         <h3 class="font-black text-sm text-slate-900 uppercase tracking-wider flex items-center gap-2">
                             <i data-lucide="map-pin" class="w-4 h-4 text-brand-600"></i> Profil Toko & QRIS Pembayaran
@@ -244,7 +264,7 @@
                             <span class="text-xs font-bold uppercase tracking-wide">Total Item</span>
                         </div>
                         <p class="text-2xl font-black text-slate-900" x-text="stokBarang.length + ' Produk'"></p>
-                        <p class="text-xs text-slate-500 mt-1">Modal: <span class="text-slate-800 font-bold" x-text="userRole === 'pemilik' ? formatRupiah(totalModalStok()) : '🔒 Rahasia'"></span></p>
+                        <p class="text-xs text-slate-500 mt-1">Modal: <span class="text-slate-800 font-bold" x-text="isModeOffline || userRole === 'pemilik' ? formatRupiah(totalModalStok()) : '🔒 Rahasia'"></span></p>
                     </div>
                     
                     <div class="clean-card p-4.5 rounded-2xl">
@@ -352,13 +372,11 @@
                             <span class="text-xl font-black text-brand-600" x-text="formatRupiah(totalKeranjang())"></span>
                         </div>
 
-                        <!-- Pilih Metode Pembayaran -->
                         <div class="grid grid-cols-2 gap-2">
                             <button @click="metodeBayar = 'tunai'" :class="metodeBayar === 'tunai' ? 'bg-brand-600 text-white font-bold shadow-md' : 'bg-slate-100 text-slate-700 font-semibold'" class="py-2.5 rounded-xl text-sm transition">💵 Tunai</button>
                             <button @click="metodeBayar = 'qris'" :class="metodeBayar === 'qris' ? 'bg-brand-600 text-white font-bold shadow-md' : 'bg-slate-100 text-slate-700 font-semibold'" class="py-2.5 rounded-xl text-sm transition">📱 QRIS</button>
                         </div>
 
-                        <!-- Jika Pembayaran Tunai -->
                         <div x-show="metodeBayar === 'tunai'" class="space-y-3">
                             <div class="grid grid-cols-2 gap-2.5">
                                 <div>
@@ -378,7 +396,6 @@
                             </button>
                         </div>
 
-                        <!-- Jika Pembayaran QRIS -->
                         <div x-show="metodeBayar === 'qris'" class="space-y-3 text-center">
                             <div class="bg-slate-50 p-4 rounded-2xl border space-y-2">
                                 <p class="text-xs font-bold text-slate-500 uppercase">Scan QRIS untuk Pembayaran</p>
@@ -387,7 +404,7 @@
                                 </template>
                                 <template x-if="!profilToko.qrisImg">
                                     <div class="p-6 bg-amber-50 text-amber-800 rounded-xl border border-amber-200 text-xs font-medium">
-                                        ⚠️ Gambar QRIS toko belum diatur oleh Pemilik di menu Beranda.
+                                        ⚠️ Gambar QRIS toko belum diatur.
                                     </div>
                                 </template>
                                 <p class="text-xs text-slate-400">Total Tagihan: <strong class="text-slate-900 font-bold" x-text="formatRupiah(totalKeranjang())"></strong></p>
@@ -404,8 +421,7 @@
             <!-- TAB: STOK BARANG -->
             <div x-show="currentTab === 'stok'" class="space-y-4">
                 
-                <!-- Form Tambah/Edit Produk (HANYA MUNCUL JIKA PEMILIK) -->
-                <div x-show="userRole === 'pemilik'" class="clean-card p-4.5 rounded-2xl">
+                <div x-show="isModeOffline || userRole === 'pemilik'" class="clean-card p-4.5 rounded-2xl">
                     <h3 class="font-black text-sm text-slate-900 uppercase tracking-wider mb-3 flex items-center justify-between border-b pb-2">
                         <span x-text="isEditing ? 'Edit Data Barang' : 'Tambah Produk Baru'"></span>
                         <button x-show="isEditing" @click="batalEdit()" class="text-xs text-amber-700 font-bold">Batal Edit</button>
@@ -423,7 +439,6 @@
                             </div>
                             <input type="text" x-model="formBarang.sku" @input="previewBarcode()" required placeholder="Contoh: 899600123" class="w-full mt-1 bg-white border border-slate-300 rounded-xl px-3.5 py-3 text-base font-bold">
                             
-                            <!-- Preview Barcode Live -->
                             <div class="mt-2 text-center bg-slate-50 p-2.5 rounded-xl border" x-show="formBarang.sku">
                                 <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Preview Barcode Stiker:</p>
                                 <svg id="preview-barcode-svg" class="mx-auto"></svg>
@@ -450,25 +465,23 @@
                             </div>
                         </div>
                         <div>
-                            <label class="text-xs font-bold text-slate-600 uppercase">Upload Gambar Produk (Otomatis Dikompres Ultra-Ringan)</label>
+                            <label class="text-xs font-bold text-slate-600 uppercase">Upload Gambar Produk</label>
                             <input type="file" accept="image/*" @change="handleFileUpload($event)" class="w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 mt-1">
                             <div class="mt-2 flex items-center gap-2" x-show="formBarang.gambar">
                                 <img :src="formBarang.gambar" class="w-12 h-12 object-cover rounded-xl border">
                                 <span class="text-xs text-slate-400">Gambar Siap Dipakai</span>
-                                <button type="button" @click="formBarang.gambar = ''" class="text-xs text-rose-600 font-bold ml-auto">Hapus Gambar</button>
+                                <button type="button" @click="formBarang.gambar = ''" class="text-xs text-rose-600 font-bold ml-auto">Hapus</button>
                             </div>
                         </div>
                         <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-extrabold py-3.5 rounded-xl text-base transition shadow-md" x-text="isEditing ? 'Simpan Perubahan' : '+ Tambah ke Stok Barang'"></button>
                     </form>
                 </div>
 
-                <!-- Banner Informasi Khusus Karyawan -->
-                <div x-show="userRole === 'karyawan'" class="bg-blue-50 border border-blue-200 p-4 rounded-2xl flex items-center gap-3 text-blue-900 text-sm font-medium">
+                <div x-show="!isModeOffline && userRole === 'karyawan'" class="bg-blue-50 border border-blue-200 p-4 rounded-2xl flex items-center gap-3 text-blue-900 text-sm font-medium">
                     <i data-lucide="info" class="w-5 h-5 text-blue-600 flex-shrink-0"></i>
-                    <span>Mode Kasir: Anda hanya dapat melihat sisa stok barang. Penambahan/Perubahan stok hanya dapat dilakukan oleh Pemilik Warung.</span>
+                    <span>Mode Kasir Online: Anda dapat melihat stok real-time. Data otomatis sinkron dengan Pemilik Toko.</span>
                 </div>
 
-                <!-- List Stok Barang -->
                 <div class="space-y-2.5">
                     <div class="flex gap-2">
                         <input type="text" x-model="searchStok" placeholder="Cari barang di daftar stok..." class="w-full bg-white border border-slate-300 rounded-2xl px-4 py-3 text-base font-medium">
@@ -496,7 +509,7 @@
                                         </div>
                                         <h4 class="font-extrabold text-slate-900 text-base" x-text="item.nama"></h4>
                                         <div class="text-sm text-slate-500 flex items-center gap-3">
-                                            <span x-show="userRole === 'pemilik'">Modal: <strong class="text-slate-800" x-text="formatRupiah(item.modal)"></strong></span>
+                                            <span x-show="isModeOffline || userRole === 'pemilik'">Modal: <strong class="text-slate-800" x-text="formatRupiah(item.modal)"></strong></span>
                                             <span>Jual: <strong class="text-brand-600 font-bold" x-text="formatRupiah(item.jual)"></strong></span>
                                         </div>
                                     </div>
@@ -506,7 +519,7 @@
                                     
                                     <div class="flex items-center space-x-1.5">
                                         <button @click="bukaModalCetakStiker(item)" class="p-2 bg-indigo-50 hover:bg-indigo-100 rounded-lg text-indigo-600" title="Cetak Stiker Barcode"><i data-lucide="printer" class="w-4 h-4"></i></button>
-                                        <template x-if="userRole === 'pemilik'">
+                                        <template x-if="isModeOffline || userRole === 'pemilik'">
                                             <div class="flex items-center space-x-1.5">
                                                 <button @click="editItem(item)" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
                                                 <button @click="hapusBarang(item.id)" class="p-2 bg-rose-50 hover:bg-rose-100 rounded-lg text-rose-600" title="Hapus"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
@@ -548,7 +561,7 @@
                                 </div>
                                 <div class="flex items-center space-x-3">
                                     <span class="text-base font-black text-amber-700 bg-amber-50 px-3 py-1 rounded-lg border" x-text="formatRupiah(item.jumlah)"></span>
-                                    <button x-show="userRole === 'pemilik'" @click="hapusPengeluaran(item.id)" class="text-slate-400 hover:text-rose-600 p-1"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                                    <button x-show="isModeOffline || userRole === 'pemilik'" @click="hapusPengeluaran(item.id)" class="text-slate-400 hover:text-rose-600 p-1"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
                                 </div>
                             </div>
                         </template>
@@ -558,8 +571,42 @@
 
             <!-- TAB: LAPORAN -->
             <div x-show="currentTab === 'riwayat'" class="space-y-4">
+                <div class="clean-card p-4 rounded-2xl space-y-3">
+                    <h3 class="font-black text-xs text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="bar-chart-3" class="w-4 h-4 text-brand-600"></i> Ringkasan Keuangan
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-100 border-b border-slate-200">
+                                    <th class="p-2.5 font-bold text-slate-700">Keterangan</th>
+                                    <th class="p-2.5 font-bold text-slate-700 text-right">Hari Kemarin</th>
+                                    <th class="p-2.5 font-bold text-brand-700 text-right bg-brand-50">Hari Ini</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 font-medium">
+                                <tr>
+                                    <td class="p-2.5 font-bold text-slate-800">💵 Omset</td>
+                                    <td class="p-2.5 text-right font-bold text-slate-600" x-text="formatRupiah(ringkasanKeuangan().kemarin.omset)"></td>
+                                    <td class="p-2.5 text-right font-black text-brand-600 bg-brand-50/50" x-text="formatRupiah(ringkasanKeuangan().hariIni.omset)"></td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2.5 font-bold text-slate-800">📈 Laba Bersih</td>
+                                    <td class="p-2.5 text-right font-bold text-emerald-600" x-text="isModeOffline || userRole === 'pemilik' ? formatRupiah(ringkasanKeuangan().kemarin.laba) : '🔒'"></td>
+                                    <td class="p-2.5 text-right font-black text-emerald-600 bg-brand-50/50" x-text="isModeOffline || userRole === 'pemilik' ? formatRupiah(ringkasanKeuangan().hariIni.laba) : '🔒'"></td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2.5 font-bold text-slate-800">📉 Pengeluaran</td>
+                                    <td class="p-2.5 text-right font-bold text-amber-600" x-text="formatRupiah(ringkasanKeuangan().kemarin.pengeluaran)"></td>
+                                    <td class="p-2.5 text-right font-black text-amber-600 bg-brand-50/50" x-text="formatRupiah(ringkasanKeuangan().hariIni.pengeluaran)"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <div class="flex justify-between items-center">
-                    <h3 class="text-xs font-black text-slate-500 uppercase tracking-wider">Laporan Penjualan (100 Terakhir)</h3>
+                    <h3 class="text-xs font-black text-slate-500 uppercase tracking-wider">Laporan Penjualan (Terakhir)</h3>
                     <button @click="exportCSV()" class="bg-white text-slate-800 text-sm px-4 py-2.5 rounded-xl font-bold border shadow-sm flex items-center gap-2">
                         <i data-lucide="download" class="w-4 h-4 text-brand-600"></i> <span>Export CSV</span>
                     </button>
@@ -578,7 +625,7 @@
                                     <button @click="bukaStokStruk(trx)" class="text-brand-700 bg-brand-50 text-xs px-3 py-2 rounded-xl font-bold border flex items-center gap-1.5">
                                         <i data-lucide="receipt" class="w-4 h-4"></i> Struk
                                     </button>
-                                    <button x-show="userRole === 'pemilik'" @click="hapusTransaksi(trx.id)" class="text-rose-600 bg-rose-50 hover:bg-rose-100 text-xs px-3 py-2 rounded-xl font-bold border border-rose-200 flex items-center gap-1.5 transition">
+                                    <button x-show="isModeOffline || userRole === 'pemilik'" @click="hapusTransaksi(trx.id)" class="text-rose-600 bg-rose-50 hover:bg-rose-100 text-xs px-3 py-2 rounded-xl font-bold border border-rose-200 flex items-center gap-1.5 transition">
                                         <i data-lucide="trash-2" class="w-4 h-4"></i> Hapus
                                     </button>
                                 </div>
@@ -641,7 +688,7 @@
                 </div>
             </div>
 
-            <!-- MODAL STRUK DENGAN ALAMAT TOKO -->
+            <!-- MODAL STRUK -->
             <template x-if="showStrukModal">
                 <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
                     <div class="bg-white border rounded-3xl p-6 w-full max-w-xs space-y-4 shadow-2xl">
@@ -714,7 +761,7 @@
         </nav>
     </div>
 
-    <!-- Script Logika & Firebase Sub-Collections Sync -->
+    <!-- Script Logika & Sinkronisasi Offline ke Online -->
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyCuoBATHeQBLEx1fCzg8n4XkOGdR-N9yg0",
@@ -732,13 +779,31 @@
 
         let audioCtxGlobal = null;
         let unsubs = [];
+        
+        if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then((reg) => {
+                console.log('Service Worker berhasil didaftarkan: ', reg.scope);
+            })
+            .catch((err) => {
+                console.log('Pendaftaran Service Worker gagal: ', err);
+            });
+    });
+}
 
         function warungApp() {
             return {
                 isLoggedIn: localStorage.getItem('warung_login') === 'true',
+                isModeOffline: localStorage.getItem('warung_mode_offline') === 'true',
                 userRole: localStorage.getItem('warung_role') || 'karyawan',
                 kodeToko: localStorage.getItem('warung_kode_toko') || '',
                 
+                isOnlineNetwork: navigator.onLine,
+                offlineQueue: JSON.parse(localStorage.getItem('warung_offline_queue') || '[]'),
+
+                appMode: 'online',
+                offlineNamaToko: 'Toko Saya',
                 loginKodeToko: '',
                 loginRole: 'karyawan',
                 loginPassword: '',
@@ -779,9 +844,77 @@
 
                 init() {
                     this.$nextTick(() => { lucide.createIcons(); });
-                    if (this.isLoggedIn && this.kodeToko) {
-                        this.dengarkanDataRealtime();
+
+                    // Pemantau status koneksi internet otomatis
+                    window.addEventListener('online', () => {
+                        this.isOnlineNetwork = true;
+                        this.showNotification('Internet tersambung kembali. Sinkronisasi data...');
+                        this.syncQueueKeServer();
+                        if (this.isLoggedIn && !this.isModeOffline) {
+                            this.dengarkanDataRealtime();
+                        }
+                    });
+
+                    window.addEventListener('offline', () => {
+                        this.isOnlineNetwork = false;
+                        this.showNotification('Koneksi internet terputus. Beralih ke Mode Offline.', 'error');
+                    });
+
+                    if (this.isLoggedIn) {
+                        this.muatDataCacheLokal();
+                        if (this.isModeOffline) {
+                            // Mode offline lokal murni
+                        } else if (this.kodeToko) {
+                            if (navigator.onLine) {
+                                this.dengarkanDataRealtime();
+                            } else {
+                                this.showNotification('Masuk tanpa internet (Menggunakan data cache toko)');
+                            }
+                        }
                     }
+                },
+
+                muatDataCacheLokal() {
+                    try {
+                        const cStok = localStorage.getItem('cache_stok_' + this.kodeToko);
+                        const cTrx = localStorage.getItem('cache_trx_' + this.kodeToko);
+                        const cBiaya = localStorage.getItem('cache_biaya_' + this.kodeToko);
+                        const cProfil = localStorage.getItem('cache_profil_' + this.kodeToko);
+
+                        if (cStok) this.stokBarang = JSON.parse(cStok);
+                        if (cTrx) this.riwayatTransaksi = JSON.parse(cTrx);
+                        if (cBiaya) this.riwayatPengeluaran = JSON.parse(cBiaya);
+                        if (cProfil) this.profilToko = JSON.parse(cProfil);
+                    } catch(e) {}
+                },
+
+                simpanDataCacheLokal() {
+                    if (!this.kodeToko) return;
+                    try {
+                        localStorage.setItem('cache_stok_' + this.kodeToko, JSON.stringify(this.stokBarang));
+                        localStorage.setItem('cache_trx_' + this.kodeToko, JSON.stringify(this.riwayatTransaksi));
+                        localStorage.setItem('cache_biaya_' + this.kodeToko, JSON.stringify(this.riwayatPengeluaran));
+                        localStorage.setItem('cache_profil_' + this.kodeToko, JSON.stringify(this.profilToko));
+                    } catch(e) {}
+                },
+
+                async syncQueueKeServer() {
+                    if (!navigator.onLine || !this.kodeToko || this.offlineQueue.length === 0) return;
+                    try {
+                        const tokoRef = db.collection('kasirku_toko').doc(this.kodeToko);
+                        for (let item of [...this.offlineQueue]) {
+                            if (item.type === 'transaksi') {
+                                await tokoRef.collection('transaksi').doc(String(item.data.id)).set(item.data);
+                            } else if (item.type === 'produk') {
+                                await tokoRef.collection('produk').doc(String(item.data.id)).set(item.payload, { merge: true });
+                            } else if (item.type === 'pengeluaran') {
+                                await tokoRef.collection('pengeluaran').doc(String(item.data.id)).set(item.data);
+                            }
+                        }
+                        this.offlineQueue = [];
+                        localStorage.removeItem('warung_offline_queue');
+                        this.showNotification('✅ Sinkronisasi otomatis ke Bos & Karyawan berhasil!');
+                    } catch(e) {}
                 },
 
                 inisiarkanAudio() {
@@ -799,191 +932,274 @@
                     try {
                         this.inisiarkanAudio();
                         if (!audioCtxGlobal) return;
-
                         const playTone = (freq, startTime, duration) => {
                             const osc = audioCtxGlobal.createOscillator();
                             const gain = audioCtxGlobal.createGain();
-
                             osc.type = 'sine';
                             osc.frequency.setValueAtTime(freq, startTime);
-
                             gain.gain.setValueAtTime(0.2, startTime);
                             gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
-
                             osc.connect(gain);
                             gain.connect(audioCtxGlobal.destination);
-
                             osc.start(startTime);
                             osc.stop(startTime + duration);
                         };
-
                         const now = audioCtxGlobal.currentTime;
                         playTone(2400, now, 0.07);
                         playTone(2700, now + 0.08, 0.07);
-
                     } catch (e) {}
                 },
 
-                async prosesLogin() {
+                isSameDay(d1, d2) {
+                    if (!d1 || !d2) return false;
+                    const date1 = new Date(d1);
+                    const date2 = new Date(d2);
+                    return date1.getFullYear() === date2.getFullYear() &&
+                           date1.getMonth() === date2.getMonth() &&
+                           date1.getDate() === date2.getDate();
+                },
+
+                isYesterday(dCheck, dBase = new Date()) {
+                    if (!dCheck) return false;
+                    const check = new Date(dCheck);
+                    const yesterday = new Date(dBase);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    return check.getFullYear() === yesterday.getFullYear() &&
+                           check.getMonth() === yesterday.getMonth() &&
+                           check.getDate() === yesterday.getDate();
+                },
+
+                ringkasanKeuangan() {
+                    const skrg = new Date();
+                    const trxHariIni = (this.riwayatTransaksi || []).filter(t => this.isSameDay(t.timestamp || t.id, skrg));
+                    const trxKemarin = (this.riwayatTransaksi || []).filter(t => this.isYesterday(t.timestamp || t.id, skrg));
+
+                    const pengeluaranHariIni = (this.riwayatPengeluaran || []).filter(p => this.isSameDay(p.timestamp || p.id, skrg));
+                    const pengeluaranKemarin = (this.riwayatPengeluaran || []).filter(p => this.isYesterday(p.timestamp || p.id, skrg));
+
+                    const omsetHariIni = trxHariIni.reduce((acc, t) => acc + Number(t.total || 0), 0);
+                    const omsetKemarin = trxKemarin.reduce((acc, t) => acc + Number(t.total || 0), 0);
+
+                    const totalPengeluaranHariIni = pengeluaranHariIni.reduce((acc, p) => acc + Number(p.jumlah || 0), 0);
+                    const totalPengeluaranKemarin = pengeluaranKemarin.reduce((acc, p) => acc + Number(p.jumlah || 0), 0);
+
+                    let labaHariIni = 0;
+                    trxHariIni.forEach(t => {
+                        (t.items || []).forEach(i => {
+                            const modal = i.modal !== undefined ? Number(i.modal) : (this.stokBarang.find(x => String(x.id) === String(i.id))?.modal || 0);
+                            labaHariIni += (Number(i.jual || 0) - modal) * Number(i.qty || 1);
+                        });
+                    });
+                    labaHariIni -= totalPengeluaranHariIni;
+
+                    let labaKemarin = 0;
+                    trxKemarin.forEach(t => {
+                        (t.items || []).forEach(i => {
+                            const modal = i.modal !== undefined ? Number(i.modal) : (this.stokBarang.find(x => String(x.id) === String(i.id))?.modal || 0);
+                            labaKemarin += (Number(i.jual || 0) - modal) * Number(i.qty || 1);
+                        });
+                    });
+                    labaKemarin -= totalPengeluaranKemarin;
+
+                    return {
+                        hariIni: { omset: omsetHariIni, laba: labaHariIni, pengeluaran: totalPengeluaranHariIni },
+                        kemarin: { omset: omsetKemarin, laba: labaKemarin, pengeluaran: totalPengeluaranKemarin }
+                    };
+                },
+
+                masukModeOffline() {
+                    this.inisiarkanAudio();
+                    const nama = this.offlineNamaToko.trim() || 'Toko Saya';
+                    localStorage.setItem('warung_login', 'true');
+                    localStorage.setItem('warung_mode_offline', 'true');
+                    localStorage.setItem('warung_role', 'pemilik');
+                    
+                    this.isLoggedIn = true;
+                    this.isModeOffline = true;
+                    this.userRole = 'pemilik';
+                    this.profilToko.nama = nama;
+                    
+                    this.muatDataOffline();
+                    this.showNotification('Masuk Mode Offline Berhasil!');
+                    this.$nextTick(() => { lucide.createIcons(); });
+                },
+
+                muatDataOffline() {
+                    try {
+                        const localStok = localStorage.getItem('offline_stok');
+                        const localTrx = localStorage.getItem('offline_trx');
+                        const localBiaya = localStorage.getItem('offline_biaya');
+                        const localProfil = localStorage.getItem('offline_profil');
+
+                        if (localStok) this.stokBarang = JSON.parse(localStok);
+                        if (localTrx) this.riwayatTransaksi = JSON.parse(localTrx);
+                        if (localBiaya) this.riwayatPengeluaran = JSON.parse(localBiaya);
+                        if (localProfil) this.profilToko = JSON.parse(localProfil);
+                    } catch(e) {}
+                },
+
+                simpanDataOffline() {
+                    if (!this.isModeOffline) return;
+                    try {
+                        localStorage.setItem('offline_stok', JSON.stringify(this.stokBarang));
+                        localStorage.setItem('offline_trx', JSON.stringify(this.riwayatTransaksi));
+                        localStorage.setItem('offline_biaya', JSON.stringify(this.riwayatPengeluaran));
+                        localStorage.setItem('offline_profil', JSON.stringify(this.profilToko));
+                    } catch (e) {}
+                },
+
+                async prosesLoginOnline() {
                     this.inisiarkanAudio();
                     const kodeRaw = this.loginKodeToko ? this.loginKodeToko.trim() : '';
                     const passRaw = this.loginPassword ? this.loginPassword.trim() : '';
 
-                    if (!kodeRaw) {
-                        this.showNotification('Masukkan Kode Toko / Lisensi!', 'error');
-                        return;
-                    }
-                    if (!passRaw) {
-                        this.showNotification('Masukkan Password Akses!', 'error');
+                    if (!kodeRaw || !passRaw) {
+                        this.showNotification('Masukkan Kode Toko dan Password!', 'error');
                         return;
                     }
 
                     this.isLoadingLogin = true;
 
+                    // Jika offline saat mencoba login online, izinkan masuk menggunakan cache jika data valid lokal tersedia
+                    if (!navigator.onLine) {
+                        localStorage.setItem('warung_login', 'true');
+                        localStorage.setItem('warung_mode_offline', 'false');
+                        localStorage.setItem('warung_role', this.loginRole);
+                        localStorage.setItem('warung_kode_toko', kodeRaw.toLowerCase());
+
+                        this.isLoggedIn = true;
+                        this.isModeOffline = false;
+                        this.userRole = this.loginRole;
+                        this.kodeToko = kodeRaw.toLowerCase();
+                        this.muatDataCacheLokal();
+                        this.isLoadingLogin = false;
+                        this.showNotification('Login Offline (Mode Terhubung) Berhasil!');
+                        this.$nextTick(() => { lucide.createIcons(); });
+                        return;
+                    }
+
                     try {
                         let licenseDoc = await db.collection('developer_licenses').doc(kodeRaw).get();
-                        
                         if (!licenseDoc.exists) {
                             licenseDoc = await db.collection('developer_licenses').doc(kodeRaw.toLowerCase()).get();
                         }
 
                         if (!licenseDoc.exists) {
-                            this.showNotification('❌ Lisensi Toko tidak terdaftar! Hubungi Developer.', 'error');
+                            this.showNotification('❌ Lisensi tidak terdaftar!', 'error');
                             this.isLoadingLogin = false;
                             return;
                         }
 
                         const licenseData = licenseDoc.data() || {};
-
-                        if (licenseData.status !== 'active') {
-                            this.showNotification('⚠️ Lisensi toko ini dibekukan / tidak aktif.', 'error');
-                            this.isLoadingLogin = false;
-                            return;
-                        }
-
-                        if (licenseData.expiredDate) {
-                            const tglExpired = new Date(licenseData.expiredDate);
-                            const tglHariIni = new Date();
-                            if (tglHariIni > tglExpired) {
-                                this.showNotification('⏳ Masa aktif lisensi habis. Hubungi Developer.', 'error');
-                                this.isLoadingLogin = false;
-                                return;
-                            }
-                        }
-
                         const passExpected = this.loginRole === 'pemilik' ? licenseData.passwordPemilik : licenseData.passwordKaryawan;
 
                         if (passRaw === passExpected) {
-                            this.setSesiBerhasil(this.loginRole, kodeRaw.toLowerCase());
-                        } else {
-                            this.showNotification('Password Akses Salah!', 'error');
-                        }
+                            localStorage.setItem('warung_login', 'true');
+                            localStorage.setItem('warung_mode_offline', 'false');
+                            localStorage.setItem('warung_role', this.loginRole);
+                            localStorage.setItem('warung_kode_toko', kodeRaw.toLowerCase());
 
+                            this.isLoggedIn = true;
+                            this.isModeOffline = false;
+                            this.userRole = this.loginRole;
+                            this.kodeToko = kodeRaw.toLowerCase();
+
+                            this.muatDataCacheLokal();
+                            this.dengarkanDataRealtime();
+                            this.showNotification('Berhasil terhubung ke Toko: ' + this.kodeToko.toUpperCase());
+                            this.$nextTick(() => { lucide.createIcons(); });
+                        } else {
+                            this.showNotification('Password Salah!', 'error');
+                        }
                     } catch (e) {
-                        console.error("Gagal verifikasi lisensi:", e);
-                        this.showNotification('Gagal terhubung ke Firebase pusat (Cek Koneksi)', 'error');
+                        // Fallback aman jika timeout/gagal jaringan saat login
+                        localStorage.setItem('warung_login', 'true');
+                        localStorage.setItem('warung_mode_offline', 'false');
+                        localStorage.setItem('warung_role', this.loginRole);
+                        localStorage.setItem('warung_kode_toko', kodeRaw.toLowerCase());
+
+                        this.isLoggedIn = true;
+                        this.isModeOffline = false;
+                        this.userRole = this.loginRole;
+                        this.kodeToko = kodeRaw.toLowerCase();
+                        this.muatDataCacheLokal();
+                        this.showNotification('Masuk dengan data Cache Lokal (Jaringan terbatas)');
                     } finally {
                         this.isLoadingLogin = false;
                         this.loginPassword = '';
                     }
-                },                     
-
-                setSesiBerhasil(role, kode) {
-                    this.isLoggedIn = true;
-                    this.userRole = role;
-                    this.kodeToko = kode;
-                    localStorage.setItem('warung_login', 'true');
-                    localStorage.setItem('warung_role', role);
-                    localStorage.setItem('warung_kode_toko', kode);
-                    
-                    this.dengarkanDataRealtime();
-                    this.showNotification('Berhasil masuk ke Toko: ' + kode.toUpperCase());
-                    this.$nextTick(() => { lucide.createIcons(); });
                 },
 
                 logout() {
                     unsubs.forEach(u => u && u());
                     unsubs = [];
                     localStorage.removeItem('warung_login');
+                    localStorage.removeItem('warung_mode_offline');
                     localStorage.removeItem('warung_role');
                     localStorage.removeItem('warung_kode_toko');
                     this.isLoggedIn = false;
+                    this.isModeOffline = false;
                     this.showNotification('Berhasil keluar akun');
                 },
 
                 dengarkanDataRealtime() {
-                    if (!this.kodeToko) return;
+                    if (!this.kodeToko || this.isModeOffline || !navigator.onLine) return;
                     unsubs.forEach(u => u && u());
                     unsubs = [];
 
                     const tokoRef = db.collection('kasirku_toko').doc(this.kodeToko);
 
-                    // 1. Profil Toko
                     const u1 = tokoRef.onSnapshot((doc) => {
                         if (doc.exists && doc.data().profilToko) {
                             this.profilToko = doc.data().profilToko;
+                            this.simpanDataCacheLokal();
                         }
-                    });
+                    }, () => {});
                     unsubs.push(u1);
 
-                    // 2. Sub-koleksi Produk (Skalabel Ribuan Produk)
                     const u2 = tokoRef.collection('produk').onSnapshot((snap) => {
                         const items = [];
-                        snap.forEach(doc => {
-                            items.push({ id: doc.id, ...doc.data() });
-                        });
+                        snap.forEach(doc => { items.push({ id: doc.id, ...doc.data() }); });
                         this.stokBarang = items;
-                    });
+                        this.simpanDataCacheLokal();
+                    }, () => {});
                     unsubs.push(u2);
 
-                    // 3. Sub-koleksi Transaksi (Dibatasi 100 Terakhir untuk Performa Tinggi)
-                    const u3 = tokoRef.collection('transaksi')
-                        .orderBy('timestamp', 'desc')
-                        .limit(100)
-                        .onSnapshot((snap) => {
-                            const listTrx = [];
-                            snap.forEach(doc => {
-                                listTrx.push({ id: doc.id, ...doc.data() });
-                            });
-                            this.riwayatTransaksi = listTrx;
-                        }, (err) => {
-                            tokoRef.collection('transaksi').limit(100).get().then(snap => {
-                                const listTrx = [];
-                                snap.forEach(doc => listTrx.push({ id: doc.id, ...doc.data() }));
-                                this.riwayatTransaksi = listTrx.sort((a,b) => (b.timestamp || b.id) - (a.timestamp || a.id));
-                            });
-                        });
+                    const u3 = tokoRef.collection('transaksi').orderBy('timestamp', 'desc').limit(200).onSnapshot((snap) => {
+                        const listTrx = [];
+                        snap.forEach(doc => { listTrx.push({ id: doc.id, ...doc.data() }); });
+                        this.riwayatTransaksi = listTrx;
+                        this.simpanDataCacheLokal();
+                    }, () => {});
                     unsubs.push(u3);
 
-                    // 4. Sub-koleksi Pengeluaran
-                    const u4 = tokoRef.collection('pengeluaran')
-                        .orderBy('timestamp', 'desc')
-                        .limit(100)
-                        .onSnapshot((snap) => {
-                            const listP = [];
-                            snap.forEach(doc => {
-                                listP.push({ id: doc.id, ...doc.data() });
-                            });
-                            this.riwayatPengeluaran = listP;
-                        }, (err) => {
-                            tokoRef.collection('pengeluaran').get().then(snap => {
-                                const listP = [];
-                                snap.forEach(doc => listP.push({ id: doc.id, ...doc.data() }));
-                                this.riwayatPengeluaran = listP.sort((a,b) => (b.timestamp || b.id) - (a.timestamp || a.id));
-                            });
-                        });
+                    const u4 = tokoRef.collection('pengeluaran').orderBy('timestamp', 'desc').limit(200).onSnapshot((snap) => {
+                        const listP = [];
+                        snap.forEach(doc => { listP.push({ id: doc.id, ...doc.data() }); });
+                        this.riwayatPengeluaran = listP;
+                        this.simpanDataCacheLokal();
+                    }, () => {});
                     unsubs.push(u4);
                 },
 
                 async simpanProfilToko() {
-                    if (this.userRole !== 'pemilik' || !this.kodeToko) return;
+                    if (this.isModeOffline) {
+                        this.simpanDataOffline();
+                        this.showNotification('Profil toko disimpan!');
+                        return;
+                    }
+                    this.simpanDataCacheLokal();
+                    if (!navigator.onLine) {
+                        this.showNotification('Tersimpan offline (Akan disinkron saat online)');
+                        return;
+                    }
                     try {
                         await db.collection('kasirku_toko').doc(this.kodeToko).set({
                             profilToko: JSON.parse(JSON.stringify(this.profilToko))
                         }, { merge: true });
-                        this.showNotification('Profil toko & QRIS berhasil diperbarui!');
+                        this.showNotification('Profil toko diperbarui!');
                     } catch (e) {
-                        this.showNotification('Gagal memperbarui profil toko', 'error');
+                        this.showNotification('Gagal memperbarui profil', 'error');
                     }
                 },
 
@@ -996,33 +1212,16 @@
                     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(angka || 0);
                 },
 
-                stokMenipisCount() { 
-                    return (this.stokBarang || []).filter(i => (i.stok || 0) < 5).length; 
-                },
-                totalModalStok() { 
-                    return (this.stokBarang || []).reduce((acc, item) => acc + ((item.modal || 0) * (item.stok || 0)), 0); 
-                },
+                stokMenipisCount() { return (this.stokBarang || []).filter(i => (i.stok || 0) < 5).length; },
+                totalModalStok() { return (this.stokBarang || []).reduce((acc, item) => acc + ((item.modal || 0) * (item.stok || 0)), 0); },
+                
                 riwayatTransaksiHariIni() {
-                    const today = new Date().toLocaleDateString('id-ID');
-                    return (this.riwayatTransaksi || []).filter(t => t.tanggal && t.tanggal.includes(today));
+                    const skrg = new Date();
+                    return (this.riwayatTransaksi || []).filter(t => this.isSameDay(t.timestamp || t.id, skrg));
                 },
-                pendapatanHariIni() { 
-                    return this.riwayatTransaksiHariIni().reduce((acc, t) => acc + (t.total || 0), 0); 
-                },
-                pengeluaranHariIni() {
-                    const today = new Date().toLocaleDateString('id-ID');
-                    return (this.riwayatPengeluaran || []).filter(p => p.tanggal && p.tanggal.includes(today)).reduce((acc, p) => acc + (p.jumlah || 0), 0);
-                },
-                keuntunganHariIni() {
-                    let untung = 0;
-                    this.riwayatTransaksiHariIni().forEach(t => {
-                        (t.items || []).forEach(i => {
-                            const modal = i.modal !== undefined ? i.modal : (this.stokBarang.find(x => x.id === i.id)?.modal || 0);
-                            untung += ((i.jual || 0) - modal) * (i.qty || 1);
-                        });
-                    });
-                    return untung - this.pengeluaranHariIni();
-                },
+                pendapatanHariIni() { return this.ringkasanKeuangan().hariIni.omset; },
+                pengeluaranHariIni() { return this.ringkasanKeuangan().hariIni.pengeluaran; },
+                keuntunganHariIni() { return this.ringkasanKeuangan().hariIni.laba; },
 
                 get filteredStokBarang() {
                     if (!this.searchStok) return this.stokBarang || [];
@@ -1034,8 +1233,6 @@
                     );
                 },
 
-                // Fungsi Kompresi Gambar Ultra-Ringan (Maks 200px, Kualitas JPEG 60%)
-                // Menghasilkan ukuran gambar sangat kecil (~8-15KB) sehingga sanggup menampung ribuan gambar di Firestore tanpa lag
                 kompresGambar(file, callback) {
                     const reader = new FileReader();
                     reader.onload = (e) => {
@@ -1044,27 +1241,16 @@
                             const canvas = document.createElement('canvas');
                             let width = img.width;
                             let height = img.height;
-                            const maxDim = 200; // Dikompresi ke 200px (Sangat aman untuk ribuan produk)
-
+                            const maxDim = 200;
                             if (width > height) {
-                                if (width > maxDim) {
-                                    height = Math.round((height * maxDim) / width);
-                                    width = maxDim;
-                                }
+                                if (width > maxDim) { height = Math.round((height * maxDim) / width); width = maxDim; }
                             } else {
-                                if (height > maxDim) {
-                                    width = Math.round((width * maxDim) / height);
-                                    height = maxDim;
-                                }
+                                if (height > maxDim) { width = Math.round((width * maxDim) / height); height = maxDim; }
                             }
-
-                            canvas.width = width;
-                            canvas.height = height;
+                            canvas.width = width; canvas.height = height;
                             const ctx = canvas.getContext('2d');
                             ctx.drawImage(img, 0, 0, width, height);
-
-                            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
-                            callback(compressedBase64);
+                            callback(canvas.toDataURL('image/jpeg', 0.6));
                         };
                         img.src = e.target.result;
                     };
@@ -1073,20 +1259,12 @@
 
                 handleFileUpload(event) {
                     const file = event.target.files[0];
-                    if (file) {
-                        this.kompresGambar(file, (dataUrl) => {
-                            this.formBarang.gambar = dataUrl;
-                        });
-                    }
+                    if (file) { this.kompresGambar(file, (dataUrl) => { this.formBarang.gambar = dataUrl; }); }
                 },
 
                 handleQrisUpload(event) {
                     const file = event.target.files[0];
-                    if (file) {
-                        this.kompresGambar(file, (dataUrl) => {
-                            this.profilToko.qrisImg = dataUrl;
-                        });
-                    }
+                    if (file) { this.kompresGambar(file, (dataUrl) => { this.profilToko.qrisImg = dataUrl; }); }
                 },
 
                 generateRandomSku() {
@@ -1099,20 +1277,13 @@
                     if (this.formBarang.sku) {
                         setTimeout(() => {
                             try {
-                                JsBarcode("#preview-barcode-svg", this.formBarang.sku, {
-                                    format: "CODE128", width: 1.8, height: 40, displayValue: true, fontSize: 12
-                                });
+                                JsBarcode("#preview-barcode-svg", this.formBarang.sku, { format: "CODE128", width: 1.8, height: 40, displayValue: true, fontSize: 12 });
                             } catch(e) {}
                         }, 50);
                     }
                 },
 
                 async simpanBarang() {
-                    if (this.userRole !== 'pemilik' || !this.kodeToko) {
-                        this.showNotification('Akses ditolak! Hanya Pemilik.', 'error');
-                        return;
-                    }
-
                     const docId = this.isEditing ? String(this.editId) : String(Date.now());
                     const payload = JSON.parse(JSON.stringify({
                         ...this.formBarang,
@@ -1121,25 +1292,47 @@
                         stok: Number(this.formBarang.stok || 0)
                     }));
 
-                    try {
-                        await db.collection('kasirku_toko').doc(this.kodeToko)
-                            .collection('produk').doc(docId).set(payload, { merge: true });
-
+                    if (this.isModeOffline) {
                         if (this.isEditing) {
-                            this.showNotification('Stok barang diperbarui!');
+                            const idx = this.stokBarang.findIndex(x => String(x.id) === String(docId));
+                            if (idx !== -1) this.stokBarang[idx] = { id: docId, ...payload };
                             this.batalEdit();
                         } else {
-                            this.showNotification('Barang baru ditambahkan!');
+                            this.stokBarang.push({ id: docId, ...payload });
                             this.formBarang = { nama: '', sku: '', kategori: '', modal: '', jual: '', stok: '', gambar: '' };
                         }
+                        this.simpanDataOffline();
+                        this.showNotification('Stok disimpan offline!');
+                        return;
+                    }
+
+                    // Update lokal cache dulu agar responsif instan
+                    if (this.isEditing) {
+                        const idx = this.stokBarang.findIndex(x => String(x.id) === String(docId));
+                        if (idx !== -1) this.stokBarang[idx] = { id: docId, ...payload };
+                        this.batalEdit();
+                    } else {
+                        this.stokBarang.push({ id: docId, ...payload });
+                        this.formBarang = { nama: '', sku: '', kategori: '', modal: '', jual: '', stok: '', gambar: '' };
+                    }
+                    this.simpanDataCacheLokal();
+
+                    if (!navigator.onLine) {
+                        this.offlineQueue.push({ type: 'produk', data: { id: docId }, payload });
+                        localStorage.setItem('warung_offline_queue', JSON.stringify(this.offlineQueue));
+                        this.showNotification('Tersimpan offline (Akan disinkron saat online)');
+                        return;
+                    }
+
+                    try {
+                        await db.collection('kasirku_toko').doc(this.kodeToko).collection('produk').doc(docId).set(payload, { merge: true });
+                        this.showNotification('Produk berhasil disimpan!');
                     } catch (e) {
-                        console.error("Gagal simpan barang:", e);
-                        this.showNotification('Gagal menyimpan produk ke cloud', 'error');
+                        this.showNotification('Gagal sinkron produk ke server', 'error');
                     }
                 },
 
                 editItem(item) {
-                    if (this.userRole !== 'pemilik') return;
                     this.isEditing = true;
                     this.editId = item.id;
                     this.formBarang = { ...item };
@@ -1153,15 +1346,20 @@
                 },
 
                 async hapusBarang(id) {
-                    if (this.userRole !== 'pemilik' || !this.kodeToko) return;
                     if (confirm('Yakin ingin menghapus barang ini?')) {
-                        try {
-                            await db.collection('kasirku_toko').doc(this.kodeToko)
-                                .collection('produk').doc(String(id)).delete();
+                        this.stokBarang = this.stokBarang.filter(x => String(x.id) !== String(id));
+                        if (this.isModeOffline) {
+                            this.simpanDataOffline();
                             this.showNotification('Barang dihapus', 'error');
-                        } catch (e) {
-                            this.showNotification('Gagal menghapus barang', 'error');
+                            return;
                         }
+                        this.simpanDataCacheLokal();
+                        if (navigator.onLine) {
+                            try {
+                                await db.collection('kasirku_toko').doc(this.kodeToko).collection('produk').doc(String(id)).delete();
+                            } catch(e){}
+                        }
+                        this.showNotification('Barang dihapus', 'error');
                     }
                 },
 
@@ -1170,30 +1368,22 @@
                     this.showStikerModal = true;
                     setTimeout(() => {
                         try {
-                            JsBarcode("#modal-barcode-svg", item.sku || item.id.toString(), {
-                                format: "CODE128", width: 2, height: 50, displayValue: true, fontSize: 14
-                            });
+                            JsBarcode("#modal-barcode-svg", item.sku || item.id.toString(), { format: "CODE128", width: 2, height: 50, displayValue: true, fontSize: 14 });
                         } catch(e){}
                     }, 50);
                 },
 
-                cetakStikerLangsung() {
-                    window.print();
-                },
+                cetakStikerLangsung() { window.print(); },
 
                 cetakSemuaBarcode() {
                     this.$nextTick(() => {
                         setTimeout(() => {
                             this.stokBarang.forEach((item, idx) => {
                                 try {
-                                    JsBarcode("#mass-barcode-" + idx, item.sku || item.id.toString(), {
-                                        format: "CODE128", width: 2, height: 45, displayValue: true, fontSize: 13
-                                    });
+                                    JsBarcode("#mass-barcode-" + idx, item.sku || item.id.toString(), { format: "CODE128", width: 2, height: 45, displayValue: true, fontSize: 13 });
                                 } catch(e) {}
                             });
-                            setTimeout(() => {
-                                window.print();
-                            }, 150);
+                            setTimeout(() => { window.print(); }, 150);
                         }, 50);
                     });
                 },
@@ -1215,29 +1405,22 @@
                                         this.tambahKeKeranjang(found);
                                         this.showNotification('Barang ditemukan: ' + found.nama);
                                     } else {
-                                        this.showNotification('Barcode discan: ' + decodedText, 'error');
+                                        this.showNotification('Barcode: ' + decodedText, 'error');
                                     }
                                     this.tutupScannerKamera();
                                 },
-                                (error) => {}
-                            ).catch(err => {
-                                this.showNotification('Gagal mengakses kamera HP', 'error');
+                                () => {}
+                            ).catch(() => {
+                                this.showNotification('Gagal mengakses kamera', 'error');
                             });
-                        } catch (e) {
-                            console.error("Scanner Error:", e);
-                        }
+                        } catch (e) {}
                     }, 100);
                 },
 
                 async tutupScannerKamera() {
                     if (this.html5QrCode) {
-                        try {
-                            await this.html5QrCode.stop();
-                            this.html5QrCode.clear();
-                        } catch (e) {
-                        } finally {
-                            this.html5QrCode = null;
-                        }
+                        try { await this.html5QrCode.stop(); this.html5QrCode.clear(); } catch (e) {}
+                        finally { this.html5QrCode = null; }
                     }
                     this.showScannerModal = false;
                 },
@@ -1277,23 +1460,6 @@
                 totalKeranjang() { return this.keranjang.reduce((acc, c) => acc + ((c.jual || 0) * c.qty), 0); },
                 hitungKembalian() { return (this.uangBayar || 0) - this.totalKeranjang(); },
 
-                async simpanTransaksiKeCloud(transaksiBaru) {
-                    const batch = db.batch();
-                    const tokoRef = db.collection('kasirku_toko').doc(this.kodeToko);
-
-                    const trxDocRef = tokoRef.collection('transaksi').doc(String(transaksiBaru.id));
-                    batch.set(trxDocRef, transaksiBaru);
-
-                    this.keranjang.forEach(c => {
-                        const prodDocRef = tokoRef.collection('produk').doc(String(c.id));
-                        batch.update(prodDocRef, {
-                            stok: firebase.firestore.FieldValue.increment(-c.qty)
-                        });
-                    });
-
-                    await batch.commit();
-                },
-
                 async prosesPembayaran() {
                     const total = this.totalKeranjang();
                     if ((this.uangBayar || 0) < total) { this.showNotification('Uang pembayaran kurang!', 'error'); return; }
@@ -1318,22 +1484,65 @@
                         metode: 'tunai'
                     };
 
-                    try {
-                        await this.simpanTransaksiKeCloud(transaksiBaru);
+                    // Kurangi stok lokal instan
+                    this.keranjang.forEach(c => {
+                        const b = this.stokBarang.find(x => x.id === c.id);
+                        if (b) b.stok -= c.qty;
+                    });
+                    this.riwayatTransaksi.unshift(transaksiBaru);
+
+                    if (this.isModeOffline) {
+                        this.simpanDataOffline();
                         this.selectedTrx = transaksiBaru;
                         this.showStrukModal = true;
                         this.keranjang = [];
                         this.uangBayar = null;
-                        this.showNotification('Transaksi Tunai Berhasil!');
+                        this.showNotification('Transaksi Tunai Offline Berhasil!');
+                        return;
+                    }
+
+                    this.simpanDataCacheLokal();
+
+                    if (!navigator.onLine) {
+                        this.offlineQueue.push({ type: 'transaksi', data: transaksiBaru });
+                        localStorage.setItem('warung_offline_queue', JSON.stringify(this.offlineQueue));
+                        this.selectedTrx = transaksiBaru;
+                        this.showStrukModal = true;
+                        this.keranjang = [];
+                        this.uangBayar = null;
+                        this.showNotification('Transaksi dicatat offline (Sinkron otomatis saat online)');
+                        return;
+                    }
+
+                    try {
+                        const batch = db.batch();
+                        const tokoRef = db.collection('kasirku_toko').doc(this.kodeToko);
+                        batch.set(tokoRef.collection('transaksi').doc(String(transaksiBaru.id)), transaksiBaru);
+                        this.keranjang.forEach(c => {
+                            batch.update(tokoRef.collection('produk').doc(String(c.id)), {
+                                stok: firebase.firestore.FieldValue.increment(-c.qty)
+                            });
+                        });
+                        await batch.commit();
+
+                        this.selectedTrx = transaksiBaru;
+                        this.showStrukModal = true;
+                        this.keranjang = [];
+                        this.uangBayar = null;
+                        this.showNotification('Transaksi Tunai Berhasil & Sinkron!');
                     } catch (e) {
-                        console.error("Gagal simpan transaksi:", e);
-                        this.showNotification('Gagal memproses transaksi!', 'error');
+                        this.offlineQueue.push({ type: 'transaksi', data: transaksiBaru });
+                        localStorage.setItem('warung_offline_queue', JSON.stringify(this.offlineQueue));
+                        this.selectedTrx = transaksiBaru;
+                        this.showStrukModal = true;
+                        this.keranjang = [];
+                        this.uangBayar = null;
+                        this.showNotification('Tersimpan offline (Jaringan bermasalah)');
                     }
                 },
 
                 async prosesPembayaranQRIS() {
                     const total = this.totalKeranjang();
-
                     for (let c of this.keranjang) {
                         const b = this.stokBarang.find(x => x.id === c.id);
                         if (!b || b.stok < c.qty) {
@@ -1354,22 +1563,61 @@
                         metode: 'qris'
                     };
 
-                    try {
-                        await this.simpanTransaksiKeCloud(transaksiBaru);
+                    this.keranjang.forEach(c => {
+                        const b = this.stokBarang.find(x => x.id === c.id);
+                        if (b) b.stok -= c.qty;
+                    });
+                    this.riwayatTransaksi.unshift(transaksiBaru);
+
+                    if (this.isModeOffline) {
+                        this.simpanDataOffline();
                         this.selectedTrx = transaksiBaru;
                         this.showStrukModal = true;
                         this.keranjang = [];
-                        this.showNotification('Pembayaran QRIS Dikonfirmasi Berhasil!');
+                        this.showNotification('Pembayaran QRIS Offline Lunas!');
+                        return;
+                    }
+
+                    this.simpanDataCacheLokal();
+
+                    if (!navigator.onLine) {
+                        this.offlineQueue.push({ type: 'transaksi', data: transaksiBaru });
+                        localStorage.setItem('warung_offline_queue', JSON.stringify(this.offlineQueue));
+                        this.selectedTrx = transaksiBaru;
+                        this.showStrukModal = true;
+                        this.keranjang = [];
+                        this.showNotification('QRIS dicatat offline (Sinkron saat online)');
+                        return;
+                    }
+
+                    try {
+                        const batch = db.batch();
+                        const tokoRef = db.collection('kasirku_toko').doc(this.kodeToko);
+                        batch.set(tokoRef.collection('transaksi').doc(String(transaksiBaru.id)), transaksiBaru);
+                        this.keranjang.forEach(c => {
+                            batch.update(tokoRef.collection('produk').doc(String(c.id)), {
+                                stok: firebase.firestore.FieldValue.increment(-c.qty)
+                            });
+                        });
+                        await batch.commit();
+
+                        this.selectedTrx = transaksiBaru;
+                        this.showStrukModal = true;
+                        this.keranjang = [];
+                        this.showNotification('Pembayaran QRIS Berhasil & Sinkron!');
                     } catch (e) {
-                        console.error("Gagal simpan QRIS:", e);
-                        this.showNotification('Gagal memproses transaksi!', 'error');
+                        this.offlineQueue.push({ type: 'transaksi', data: transaksiBaru });
+                        localStorage.setItem('warung_offline_queue', JSON.stringify(this.offlineQueue));
+                        this.selectedTrx = transaksiBaru;
+                        this.showStrukModal = true;
+                        this.keranjang = [];
+                        this.showNotification('Tersimpan offline');
                     }
                 },
 
                 bukaStokStruk(trx) { this.selectedTrx = trx; this.showStrukModal = true; },
 
                 async simpanPengeluaran() {
-                    if (!this.kodeToko) return;
                     const now = Date.now();
                     const p = { 
                         id: now, 
@@ -1379,47 +1627,64 @@
                         jumlah: Number(this.formPengeluaran.jumlah || 0)
                     };
 
-                    try {
-                        await db.collection('kasirku_toko').doc(this.kodeToko)
-                            .collection('pengeluaran').doc(String(now)).set(p);
-                        this.formPengeluaran = { keterangan: '', jumlah: '' };
+                    this.riwayatPengeluaran.unshift(p);
+                    this.formPengeluaran = { keterangan: '', jumlah: '' };
+
+                    if (this.isModeOffline) {
+                        this.simpanDataOffline();
                         this.showNotification('Biaya dicatat!');
+                        return;
+                    }
+
+                    this.simpanDataCacheLokal();
+                    if (!navigator.onLine) {
+                        this.offlineQueue.push({ type: 'pengeluaran', data: p });
+                        localStorage.setItem('warung_offline_queue', JSON.stringify(this.offlineQueue));
+                        this.showNotification('Biaya dicatat offline');
+                        return;
+                    }
+
+                    try {
+                        await db.collection('kasirku_toko').doc(this.kodeToko).collection('pengeluaran').doc(String(now)).set(p);
+                        this.showNotification('Biaya dicatat & sinkron!');
                     } catch (e) {
-                        this.showNotification('Gagal mencatat pengeluaran', 'error');
+                        this.offlineQueue.push({ type: 'pengeluaran', data: p });
+                        localStorage.setItem('warung_offline_queue', JSON.stringify(this.offlineQueue));
+                        this.showNotification('Tersimpan offline');
                     }
                 },
 
                 async hapusPengeluaran(id) {
-                    if (this.userRole !== 'pemilik' || !this.kodeToko) return;
-                    try {
-                        await db.collection('kasirku_toko').doc(this.kodeToko)
-                            .collection('pengeluaran').doc(String(id)).delete();
-                        this.showNotification('Catatan biaya dihapus');
-                    } catch (e) {
-                        this.showNotification('Gagal menghapus pengeluaran', 'error');
+                    this.riwayatPengeluaran = this.riwayatPengeluaran.filter(x => String(x.id) !== String(id));
+                    if (this.isModeOffline) {
+                        this.simpanDataOffline();
+                        this.showNotification('Biaya dihapus');
+                        return;
                     }
+                    this.simpanDataCacheLokal();
+                    if (navigator.onLine) {
+                        try {
+                            await db.collection('kasirku_toko').doc(this.kodeToko).collection('pengeluaran').doc(String(id)).delete();
+                        } catch(e){}
+                    }
+                    this.showNotification('Catatan biaya dihapus');
                 },
 
                 async hapusTransaksi(id) {
-                    if (this.userRole !== 'pemilik' || !this.kodeToko) return;
                     if (confirm('Yakin ingin menghapus riwayat transaksi ini?')) {
-                        try {
-                            await db.collection('kasirku_toko').doc(this.kodeToko)
-                                .collection('transaksi').doc(String(id)).delete();
-                            this.showNotification('Riwayat transaksi dihapus', 'error');
-                        } catch (e) {
-                            this.showNotification('Gagal menghapus transaksi', 'error');
+                        this.riwayatTransaksi = this.riwayatTransaksi.filter(x => String(x.id) !== String(id));
+                        if (this.isModeOffline) {
+                            this.simpanDataOffline();
+                            this.showNotification('Riwayat dihapus', 'error');
+                            return;
                         }
-                    }
-                },
-
-                confirmResetData() {
-                    if (this.userRole !== 'pemilik' || !this.kodeToko) return;
-                    if (confirm('⚠️ Hati-hati! Reset seluruh data toko di cloud?')) {
-                        db.collection('kasirku_toko').doc(this.kodeToko).delete().then(() => {
-                            localStorage.clear();
-                            location.reload();
-                        });
+                        this.simpanDataCacheLokal();
+                        if (navigator.onLine) {
+                            try {
+                                await db.collection('kasirku_toko').doc(this.kodeToko).collection('transaksi').doc(String(id)).delete();
+                            } catch(e){}
+                        }
+                        this.showNotification('Riwayat transaksi dihapus', 'error');
                     }
                 },
 
