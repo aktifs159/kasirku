@@ -86,10 +86,13 @@
     <!-- ================= INDIKATOR STATUS KONEKSI ================= -->
     <div class="bg-slate-900 text-white text-[11px] font-bold px-3 py-1 flex justify-between items-center z-50 sticky top-0">
         <div class="flex items-center gap-1.5">
-            <span class="w-2.5 h-2.5 rounded-full" :class="isOnlineNetwork ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'"></span>
-            <span x-text="isOnlineNetwork ? '🟢 Terhubung Internet (Online)' : '🔴 Tanpa Internet (Offline Mode)'"></span>
+            <span class="w-2.5 h-2.5 rounded-full" :class="isOnlineNetwork && !isModeOffline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'"></span>
+            <span x-text="isModeOffline ? '🔴 Mode Lokal Offline (Tanpa Sinkron)' : (isOnlineNetwork ? '🟢 Terhubung Internet (Online)' : '🔴 Tanpa Internet (Offline Mode)')"></span>
         </div>
-        <span x-show="offlineQueue.length > 0" class="bg-amber-500 text-slate-900 px-2 py-0.5 rounded text-[10px]" x-text="offlineQueue.length + ' Data Menunggu Sinkron'"></span>
+        <div class="flex items-center gap-2">
+            <span x-show="!isModeOffline && pesananOnlineList.length > 0" class="bg-rose-500 text-white px-2 py-0.5 rounded text-[10px] font-bold animate-bounce" x-text="pesananOnlineList.length + ' Pesanan Online'"></span>
+            <span x-show="offlineQueue.length > 0" class="bg-amber-500 text-slate-900 px-2 py-0.5 rounded text-[10px]" x-text="offlineQueue.length + ' Data Menunggu Sinkron'"></span>
+        </div>
     </div>
 
     <!-- ================= HALAMAN PEMILIHAN MODE / LOGIN ================= -->
@@ -106,14 +109,14 @@
 
                 <!-- PILIHAN MODE -->
                 <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
-                    <button @click="appMode = 'offline'" :class="appMode === 'offline' ? 'bg-white text-slate-900 shadow-sm font-extrabold' : 'text-slate-500 font-bold'" class="py-2.5 rounded-xl text-xs transition">📱 Offline (Lokal)</button>
-                    <button @click="appMode = 'online'" :class="appMode === 'online' ? 'bg-brand-600 text-white shadow-sm font-extrabold' : 'text-slate-500 font-bold'" class="py-2.5 rounded-xl text-xs transition">☁️ Online (Sinkron kasir)</button>
+                    <button @click="appMode = 'offline'" :class="appMode === 'offline' ? 'bg-white text-slate-900 shadow-sm font-extrabold' : 'text-slate-500 font-bold'" class="py-2.5 rounded-xl text-xs transition">📱 Offline (Single)</button>
+                    <button @click="appMode = 'online'" :class="appMode === 'online' ? 'bg-brand-600 text-white shadow-sm font-extrabold' : 'text-slate-500 font-bold'" class="py-2.5 rounded-xl text-xs transition">☁️ Online (kasir)</button>
                 </div>
 
                 <!-- FORM MODE OFFLINE (LOKAL) -->
                 <div x-show="appMode === 'offline'" class="space-y-4">
                     <div class="bg-amber-50 border border-amber-200 p-3.5 rounded-xl text-xs text-amber-800 font-medium">
-                        💡 <strong>Mode Offline Lokal:</strong> Bisa masuk tanpa internet. Data tersimpan di HP ini.
+                        💡 <strong>Mode Offline Lokal:</strong> Tidak terhubung dengan customer online. Semua data hanya tersimpan di HP ini.
                     </div>
                     <div>
                         <label class="text-xs font-bold text-slate-600 uppercase">Nama Toko Anda</label>
@@ -127,8 +130,8 @@
                 <!-- FORM MODE ONLINE (TERHUBUNG BOS & KARYAWAN) -->
                 <div x-show="appMode === 'online'" class="space-y-4">
                     <div class="bg-blue-50 border border-blue-200 p-3.5 rounded-xl text-xs text-blue-900 font-medium">
-                        <p>🔒 <strong>Mode Online:</strong> Tetap bisa login walau internet terputus (data otomatis sinkron saat internet kembali).</p>
-                        <p class="text-slate-600 pt-1 border-t border-blue-200">ℹ️ <em>Silahkan hubungi wa <strong>081317584703 (Admin)</strong> untuk mengaktifkan kasir online Anda agar bisa login.</em></p>
+                        <p>🔒 <strong>Mode Online:</strong> Sinkronisasi penuh dengan kasir online & customer online.</p>
+                        <p class="text-slate-600 pt-1 border-t border-blue-200">ℹ️ <em>Silahkan hubungi wa <strong>081317584703 (Admin)</strong> untuk mengaktifkan kasir online Anda.</em></p>
                     </div>
                     <div>
                         <label class="text-xs font-bold text-slate-600 uppercase">Kode Toko / Cabang</label>
@@ -161,8 +164,13 @@
         <header class="sticky top-7 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3.5 shadow-sm">
             <div class="max-w-md mx-auto flex items-center justify-between">
                 <div class="flex items-center space-x-3">
-                    <div class="w-11 h-11 rounded-2xl bg-brand-600 flex items-center justify-center text-white shadow-md shadow-brand-500/30 font-black text-xl">
-                        <i data-lucide="store" class="w-6 h-6"></i>
+                    <div class="w-11 h-11 rounded-2xl bg-brand-600 flex items-center justify-center text-white shadow-md shadow-brand-500/30 font-black text-xl overflow-hidden border">
+                        <template x-if="profilToko.logoImg">
+                            <img :src="profilToko.logoImg" class="w-full h-full object-cover">
+                        </template>
+                        <template x-if="!profilToko.logoImg">
+                            <i data-lucide="store" class="w-6 h-6"></i>
+                        </template>
                     </div>
                     <div>
                         <h1 class="font-extrabold text-lg tracking-tight text-slate-900 flex items-center gap-1.5">
@@ -174,6 +182,11 @@
                 </div>
                 
                 <div class="flex items-center gap-1.5">
+                    <!-- FITUR LIVE CHAT DENGAN CUSTOMER ONLINE (MENGGANTIKAN BEKAS KERANJANG ATAS) -->
+                    <button @click="bukaLiveChatModalUmum()" class="relative p-2.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold transition" title="Live Chat Customer Online">
+                        <i data-lucide="message-square" class="w-5 h-5"></i>
+                        <span x-show="!isModeOffline && pesananOnlineList.length > 0" class="absolute -top-1 -right-1 bg-indigo-600 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-black animate-pulse" x-text="pesananOnlineList.length"></span>
+                    </button>
                     <button @click="connectBluetooth()" :class="btDeviceConnected ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'" class="p-2.5 rounded-xl text-sm font-bold border transition" title="Printer Bluetooth">
                         <i data-lucide="printer" class="w-5 h-5"></i>
                     </button>
@@ -224,15 +237,37 @@
                     </div>
                 </div>
 
-                <!-- Pengaturan Profil Toko & QRIS -->
+                <!-- Status Toko Buka / Tutup Sakelar -->
+                <div class="clean-card p-4 rounded-2xl flex justify-between items-center bg-slate-900 text-white">
+                    <div>
+                        <p class="text-xs text-slate-400 font-bold uppercase">Status Layanan Toko Online</p>
+                        <h4 class="text-lg font-black" :class="profilToko.isBuka ? 'text-emerald-400' : 'text-rose-400'" x-text="profilToko.isBuka ? '🟢 Toko BUKA (Menerima Pesanan)' : '🔴 Toko TUTUP'"></h4>
+                    </div>
+                    <button @click="profilToko.isBuka = !profilToko.isBuka; simpanProfilToko()" 
+                            :class="profilToko.isBuka ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'" 
+                            class="px-4 py-2 rounded-xl font-black text-xs transition text-white shadow-md">
+                        <span x-text="profilToko.isBuka ? 'Tutup Toko' : 'Buka Toko'"></span>
+                    </button>
+                </div>
+
+                <!-- Pengaturan Profil Toko, Logo & QRIS / Rekening -->
                 <div x-show="isModeOffline || userRole === 'pemilik'" class="clean-card p-4.5 rounded-2xl space-y-3">
                     <div class="flex justify-between items-center border-b pb-2">
                         <h3 class="font-black text-sm text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                            <i data-lucide="map-pin" class="w-4 h-4 text-brand-600"></i> Profil Toko & QRIS Pembayaran
+                            <i data-lucide="map-pin" class="w-4 h-4 text-brand-600"></i> Profil Toko & Rekening Pembayaran
                         </h3>
                         <button @click="simpanProfilToko()" class="text-xs bg-brand-600 text-white font-bold px-3.5 py-1.5 rounded-lg hover:bg-brand-700">Simpan Profil</button>
                     </div>
                     <div class="space-y-2.5">
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 uppercase">Upload Logo Toko Profil</label>
+                            <input type="file" accept="image/*" @change="handleLogoUpload($event)" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 mt-1">
+                            <div class="mt-2 flex items-center gap-2" x-show="profilToko.logoImg">
+                                <img :src="profilToko.logoImg" class="w-12 h-12 object-cover rounded-xl border p-0.5">
+                                <span class="text-xs text-slate-400">Logo Aktif</span>
+                                <button type="button" @click="profilToko.logoImg = ''" class="text-xs text-rose-600 font-bold ml-auto">Hapus Logo</button>
+                            </div>
+                        </div>
                         <div>
                             <label class="text-xs font-bold text-slate-500 uppercase">Nama Toko / Warung</label>
                             <input type="text" x-model="profilToko.nama" placeholder="Contoh: Toko Berkah" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-900">
@@ -244,6 +279,10 @@
                         <div>
                             <label class="text-xs font-bold text-slate-500 uppercase">Nomor Telepon / WhatsApp</label>
                             <input type="text" x-model="profilToko.telp" placeholder="Contoh: 081234567890" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 uppercase">Nomor Rekening Bank Pembayaran</label>
+                            <input type="text" x-model="profilToko.rekening" placeholder="Contoh: BCA 123456789 a.n Toko Berkah" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900">
                         </div>
                         <div>
                             <label class="text-xs font-bold text-slate-500 uppercase">Upload Gambar QRIS (Statis Toko)</label>
@@ -292,7 +331,7 @@
                 </div>
             </div>
 
-            <!-- TAB: KASIR / POS -->
+            <!-- TAB: KASIR / POS (LOKAL INDEPENDEN) -->
             <div x-show="currentTab === 'kasir'" class="space-y-4">
                 <div class="flex gap-2">
                     <div class="relative flex-1">
@@ -329,10 +368,11 @@
                     </template>
                 </div>
 
+                <!-- KERANJANG BELANJA KASIR LOKAL -->
                 <div class="clean-card rounded-2xl p-4 space-y-3">
                     <div class="flex justify-between items-center border-b border-slate-200 pb-2.5">
                         <h3 class="font-black text-sm text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                            <i data-lucide="shopping-cart" class="w-5 h-5 text-brand-600"></i> Keranjang Belanja
+                            <i data-lucide="shopping-cart" class="w-5 h-5 text-brand-600"></i> Keranjang Belanja Kasir
                         </h3>
                         <button @click="keranjang = []" x-show="keranjang.length > 0" class="text-xs text-rose-600 font-bold hover:underline">Kosongkan</button>
                     </div>
@@ -417,6 +457,154 @@
                     </div>
                 </div>
             </div>
+
+            <!-- TAB: BIAYA & KERANJANG PESANAN CUSTOMER ONLINE -->
+            <div x-show="currentTab === 'pengeluaran'" class="space-y-4">
+                
+                <!-- BIAYA OPERASIONAL FORM -->
+                <div class="clean-card p-4.5 rounded-2xl">
+                    <h3 class="font-black text-sm text-slate-900 uppercase tracking-wider mb-3">Catat Biaya Operasional / Kulakan</h3>
+                    <form @submit.prevent="simpanPengeluaran()" class="space-y-3">
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 uppercase">Keterangan Biaya</label>
+                            <input type="text" x-model="formPengeluaran.keterangan" required placeholder="misal: Bayar Listrik" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-3 text-base font-medium">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 uppercase">Jumlah Biaya (Rp)</label>
+                            <input type="number" min="0" x-model.number="formPengeluaran.jumlah" required placeholder="0" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-3 text-base font-bold">
+                        </div>
+                        <button type="submit" class="w-full bg-slate-900 text-white font-extrabold py-3.5 rounded-xl text-base transition">+ Catat Pengeluaran</button>
+                    </form>
+                </div>
+
+                <!-- PESANAN ONLINE CUSTOMER (DIPINDAHKAN DAN DIGABUNG DI SINI) -->
+                <div x-show="!isModeOffline" class="clean-card p-4.5 rounded-2xl space-y-3 bg-amber-50/50 border-amber-200">
+                    <div class="flex justify-between items-center border-b border-amber-200 pb-2">
+                        <h3 class="font-black text-sm text-amber-900 uppercase tracking-wider flex items-center gap-2">
+                            <i data-lucide="shopping-bag" class="w-5 h-5 text-amber-600"></i> Keranjang Masuk Pesanan Online
+                        </h3>
+                        <span class="text-xs font-bold bg-amber-200 text-amber-900 px-2.5 py-1 rounded-lg" x-text="pesananOnlineList.length + ' Pesanan'"></span>
+                    </div>
+
+                    <div class="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                        <template x-for="p in pesananOnlineList" :key="p.id">
+                            <div class="bg-white p-3.5 rounded-2xl space-y-2 border shadow-sm">
+                                <div class="flex justify-between items-start border-b pb-2">
+                                    <div>
+                                        <span class="text-[10px] text-slate-400" x-text="p.tanggal"></span>
+                                        <h4 class="font-extrabold text-sm text-slate-900" x-text="p.customer ? p.customer.nama : 'Pelanggan'"></h4>
+                                        <p class="text-xs font-bold text-brand-600" x-text="'📱 ' + (p.customer ? p.customer.telp : '-')"></p>
+                                    </div>
+                                    <span class="text-[10px] font-extrabold bg-amber-100 text-amber-800 px-2 py-0.5 rounded" x-text="p.status || 'Baru'"></span>
+                                </div>
+
+                                <div class="text-xs text-slate-600 space-y-1">
+                                    <p><strong>Alamat:</strong> <span x-text="p.customer ? p.customer.alamat : '-'"></span></p>
+                                    <template x-if="p.customer && p.customer.lat">
+                                        <a :href="'https://www.google.com/maps?q=' + p.customer.lat + ',' + p.customer.lng" target="_blank" class="inline-flex items-center gap-1 text-brand-600 font-bold hover:underline">
+                                            <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> Google Maps
+                                        </a>
+                                    </template>
+                                </div>
+
+                                <div class="bg-slate-50 p-2.5 rounded-xl space-y-1 border text-xs">
+                                    <template x-for="i in p.items" :key="i.id">
+                                        <div class="flex justify-between">
+                                            <span x-text="i.nama + ' (' + i.qty + 'x)'"></span>
+                                            <span class="font-bold" x-text="formatRupiah(i.jual * i.qty)"></span>
+                                        </div>
+                                    </template>
+                                    <div class="border-t pt-1 flex justify-between font-black text-slate-900">
+                                        <span>TOTAL</span>
+                                        <span class="text-brand-600" x-text="formatRupiah(p.totalTagihan || p.total)"></span>
+                                    </div>
+                                </div>
+
+                                <template x-if="p.customer && p.customer.buktiImg">
+                                    <div class="space-y-1">
+                                        <p class="text-[10px] font-bold text-slate-500 uppercase">Bukti Pembayaran:</p>
+                                        <img :src="p.customer.buktiImg" @click="window.open(p.customer.buktiImg)" class="w-full h-24 object-cover rounded-xl border cursor-pointer">
+                                    </div>
+                                </template>
+
+                                <div class="grid grid-cols-2 gap-2 pt-1">
+                                    <button @click="bukaLiveChat(p)" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-2 rounded-xl text-xs flex items-center justify-center gap-1">
+                                        <i data-lucide="message-square" class="w-3.5 h-3.5"></i> Chat
+                                    </button>
+                                    <button @click="terimaPesananOnline(p)" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2 rounded-xl text-xs flex items-center justify-center gap-1">
+                                        <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Terima
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="pesananOnlineList.length === 0">
+                            <p class="text-center text-xs text-slate-400 py-4">Belum ada pesanan online masuk.</p>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="space-y-2.5">
+                    <h3 class="text-xs font-black text-slate-500 uppercase tracking-wider">Riwayat Catatan Biaya</h3>
+                    <div class="space-y-2.5 max-h-[280px] overflow-y-auto pr-1">
+                        <template x-for="item in riwayatPengeluaran" :key="item.id">
+                            <div class="clean-card p-4 rounded-2xl flex justify-between items-center">
+                                <div>
+                                    <p class="font-extrabold text-base text-slate-900" x-text="item.keterangan"></p>
+                                    <p class="text-xs text-slate-400 font-medium mt-0.5" x-text="item.tanggal"></p>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <span class="text-base font-black text-amber-700 bg-amber-50 px-3 py-1 rounded-lg border" x-text="formatRupiah(item.jumlah)"></span>
+                                    <button x-show="isModeOffline || userRole === 'pemilik'" @click="hapusPengeluaran(item.id)" class="text-slate-400 hover:text-rose-600 p-1"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL LIVE CHAT DENGAN PELANGGAN -->
+<template x-if="showChatModal">
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl p-5 w-full max-w-sm space-y-3 shadow-2xl flex flex-col h-[520px] relative">
+            
+            <!-- HEADER CHAT DENGAN TOMBOL TUKAR / BACK (X) -->
+            <div class="flex justify-between items-center border-b pb-2.5">
+                <div class="flex items-center gap-2">
+                    <button @click="showChatModal = false" class="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 transition" title="Kembali / Tutup">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    </button>
+                    <div>
+                        <h3 class="font-black text-sm text-slate-900 leading-tight" x-text="'Chat: ' + (activeChatTrx.customer ? activeChatTrx.customer.nama : 'Pelanggan')"></h3>
+                        <p class="text-[10px] text-slate-400" x-text="activeChatTrx.customer ? activeChatTrx.customer.telp : ''"></p>
+                    </div>
+                </div>
+                <button @click="showChatModal = false" class="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600 transition" title="Tutup">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- AREA CHAT MESSAGE -->
+            <div class="flex-1 overflow-y-auto space-y-2.5 p-2 bg-slate-50 rounded-2xl border" id="chatContainer">
+                <template x-for="c in chatMessages" :key="c.time">
+                    <div :class="c.sender === 'toko' ? 'text-right' : 'text-left'">
+                        <div :class="c.sender === 'toko' ? 'bg-brand-600 text-white rounded-br-none' : 'bg-white text-slate-900 border rounded-bl-none'" class="inline-block p-3 rounded-2xl max-w-[80%] text-xs font-medium shadow-sm">
+                            <p x-text="c.text"></p>
+                            <span class="text-[9px] opacity-70 block mt-1" x-text="c.time"></span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- INPUT CHAT & TOMBOL KIRIM (LUCIDE ICON REFRESH) -->
+            <div class="flex gap-2 pt-1">
+                <input type="text" x-model="inputChatText" @keyup.enter="kirimPesanChat()" placeholder="Ketik pesan balasan..." class="flex-1 bg-slate-100 border border-slate-300 rounded-xl px-3.5 py-3 text-xs font-medium focus:outline-none focus:border-brand-600">
+                <button @click="kirimPesanChat()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 rounded-xl font-bold flex items-center justify-center shadow-md active:scale-95 transition">
+                    <i data-lucide="send" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</template>
 
             <!-- TAB: STOK BARANG -->
             <div x-show="currentTab === 'stok'" class="space-y-4">
@@ -526,42 +714,6 @@
                                             </div>
                                         </template>
                                     </div>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB: PENGELUARAN -->
-            <div x-show="currentTab === 'pengeluaran'" class="space-y-4">
-                <div class="clean-card p-4.5 rounded-2xl">
-                    <h3 class="font-black text-sm text-slate-900 uppercase tracking-wider mb-3">Catat Biaya Operasional / Kulakan</h3>
-                    <form @submit.prevent="simpanPengeluaran()" class="space-y-3">
-                        <div>
-                            <label class="text-xs font-bold text-slate-600 uppercase">Keterangan Biaya</label>
-                            <input type="text" x-model="formPengeluaran.keterangan" required placeholder="misal: Bayar Listrik" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-3 text-base font-medium">
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-600 uppercase">Jumlah Biaya (Rp)</label>
-                            <input type="number" min="0" x-model.number="formPengeluaran.jumlah" required placeholder="0" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-3 text-base font-bold">
-                        </div>
-                        <button type="submit" class="w-full bg-slate-900 text-white font-extrabold py-3.5 rounded-xl text-base transition">+ Catat Pengeluaran</button>
-                    </form>
-                </div>
-
-                <div class="space-y-2.5">
-                    <h3 class="text-xs font-black text-slate-500 uppercase tracking-wider">Riwayat Catatan Biaya</h3>
-                    <div class="space-y-2.5 max-h-[340px] overflow-y-auto pr-1">
-                        <template x-for="item in riwayatPengeluaran" :key="item.id">
-                            <div class="clean-card p-4 rounded-2xl flex justify-between items-center">
-                                <div>
-                                    <p class="font-extrabold text-base text-slate-900" x-text="item.keterangan"></p>
-                                    <p class="text-xs text-slate-400 font-medium mt-0.5" x-text="item.tanggal"></p>
-                                </div>
-                                <div class="flex items-center space-x-3">
-                                    <span class="text-base font-black text-amber-700 bg-amber-50 px-3 py-1 rounded-lg border" x-text="formatRupiah(item.jumlah)"></span>
-                                    <button x-show="isModeOffline || userRole === 'pemilik'" @click="hapusPengeluaran(item.id)" class="text-slate-400 hover:text-rose-600 p-1"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
                                 </div>
                             </div>
                         </template>
@@ -751,8 +903,9 @@
                     </div>
                     <span class="text-xs font-extrabold mt-1 text-brand-600">Kasir</span>
                 </button>
-                <button @click="currentTab = 'pengeluaran'" :class="currentTab === 'pengeluaran' ? 'text-brand-600 font-extrabold' : 'text-slate-400'" class="flex flex-col items-center py-1">
+                <button @click="currentTab = 'pengeluaran'" :class="currentTab === 'pengeluaran' ? 'text-brand-600 font-extrabold' : 'text-slate-400'" class="flex flex-col items-center py-1 relative">
                     <i data-lucide="wallet" class="w-6 h-6 mb-1"></i><span class="text-xs">Biaya</span>
+                    <span x-show="!isModeOffline && pesananOnlineList.length > 0" class="absolute top-1 right-3 bg-amber-500 w-2.5 h-2.5 rounded-full"></span>
                 </button>
                 <button @click="currentTab = 'riwayat'" :class="currentTab === 'riwayat' ? 'text-brand-600 font-extrabold' : 'text-slate-400'" class="flex flex-col items-center py-1">
                     <i data-lucide="file-text" class="w-6 h-6 mb-1"></i><span class="text-xs">Laporan</span>
@@ -781,16 +934,12 @@
         let unsubs = [];
         
         if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-            .then((reg) => {
-                console.log('Service Worker berhasil didaftarkan: ', reg.scope);
-            })
-            .catch((err) => {
-                console.log('Pendaftaran Service Worker gagal: ', err);
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((reg) => { console.log('Service Worker berhasil didaftarkan: ', reg.scope); })
+                    .catch((err) => { console.log('Pendaftaran Service Worker gagal: ', err); });
             });
-    });
-}
+        }
 
         function warungApp() {
             return {
@@ -819,6 +968,7 @@
                 showStrukModal: false,
                 showScannerModal: false,
                 showStikerModal: false,
+                showChatModal: false,
                 selectedTrx: null,
                 selectedItemStiker: {},
                 html5QrCode: null,
@@ -831,13 +981,21 @@
                     nama: 'Kasirku',
                     alamat: 'Jl. Raya Utama No. 123',
                     telp: '08123456789',
-                    qrisImg: ''
+                    rekening: '',
+                    qrisImg: '',
+                    logoImg: '',
+                    isBuka: true
                 },
 
                 stokBarang: [],
                 keranjang: [],
                 riwayatTransaksi: [],
                 riwayatPengeluaran: [],
+                pesananOnlineList: [],
+                activeChatTrx: {},
+                chatMessages: [],
+                inputChatText: '',
+                lastPesananCount: 0,
 
                 formBarang: { nama: '', sku: '', kategori: '', modal: '', jual: '', stok: '', gambar: '' },
                 formPengeluaran: { keterangan: '', jumlah: '' },
@@ -845,30 +1003,34 @@
                 init() {
                     this.$nextTick(() => { lucide.createIcons(); });
 
-                    // Pemantau status koneksi internet otomatis
                     window.addEventListener('online', () => {
                         this.isOnlineNetwork = true;
-                        this.showNotification('Internet tersambung kembali. Sinkronisasi data...');
-                        this.syncQueueKeServer();
-                        if (this.isLoggedIn && !this.isModeOffline) {
-                            this.dengarkanDataRealtime();
+                        if (!this.isModeOffline) {
+                            this.showNotification('Internet tersambung kembali. Sinkronisasi data...');
+                            this.syncQueueKeServer();
+                            if (this.isLoggedIn) {
+                                this.dengarkanDataRealtime();
+                            }
                         }
                     });
 
                     window.addEventListener('offline', () => {
                         this.isOnlineNetwork = false;
-                        this.showNotification('Koneksi internet terputus. Beralih ke Mode Offline.', 'error');
+                        if (!this.isModeOffline) {
+                            this.showNotification('Koneksi internet terputus.', 'error');
+                        }
                     });
 
                     if (this.isLoggedIn) {
                         this.muatDataCacheLokal();
                         if (this.isModeOffline) {
-                            // Mode offline lokal murni
+                            // Mode offline lokal murni: matikan sinkronisasi online
+                            this.muatDataOffline();
                         } else if (this.kodeToko) {
                             if (navigator.onLine) {
                                 this.dengarkanDataRealtime();
                             } else {
-                                this.showNotification('Masuk tanpa internet (Menggunakan data cache toko)');
+                                this.showNotification('Masuk tanpa internet (Menggunakan data cache)');
                             }
                         }
                     }
@@ -899,7 +1061,7 @@
                 },
 
                 async syncQueueKeServer() {
-                    if (!navigator.onLine || !this.kodeToko || this.offlineQueue.length === 0) return;
+                    if (this.isModeOffline || !navigator.onLine || !this.kodeToko || this.offlineQueue.length === 0) return;
                     try {
                         const tokoRef = db.collection('kasirku_toko').doc(this.kodeToko);
                         for (let item of [...this.offlineQueue]) {
@@ -913,7 +1075,7 @@
                         }
                         this.offlineQueue = [];
                         localStorage.removeItem('warung_offline_queue');
-                        this.showNotification('✅ Sinkronisasi otomatis ke Bos & Karyawan berhasil!');
+                        this.showNotification('✅ Sinkronisasi otomatis berhasil!');
                     } catch(e) {}
                 },
 
@@ -926,6 +1088,30 @@
                             audioCtxGlobal.resume();
                         }
                     } catch(e) {}
+                },
+
+                putarSuaraNotifPesananMasuk() {
+                    if (this.isModeOffline) return;
+                    try {
+                        this.inisiarkanAudio();
+                        if ('speechSynthesis' in window) {
+                            const teks = "Halo ada pesanan masuk segera cek pembayaran dan pesanannya";
+                            let diulang = 0;
+                            const bicara = () => {
+                                if (diulang < 3) {
+                                    const utterance = new SpeechSynthesisUtterance(teks);
+                                    utterance.lang = 'id-ID';
+                                    utterance.rate = 0.95;
+                                    utterance.onend = () => {
+                                        diulang++;
+                                        setTimeout(bicara, 500);
+                                    };
+                                    window.speechSynthesis.speak(utterance);
+                                }
+                            };
+                            bicara();
+                        }
+                    } catch (e) {}
                 },
 
                 bunyiBeep() {
@@ -1020,7 +1206,7 @@
                     this.profilToko.nama = nama;
                     
                     this.muatDataOffline();
-                    this.showNotification('Masuk Mode Offline Berhasil!');
+                    this.showNotification('Masuk Mode Offline (Lokal) Berhasil!');
                     this.$nextTick(() => { lucide.createIcons(); });
                 },
 
@@ -1060,7 +1246,6 @@
 
                     this.isLoadingLogin = true;
 
-                    // Jika offline saat mencoba login online, izinkan masuk menggunakan cache jika data valid lokal tersedia
                     if (!navigator.onLine) {
                         localStorage.setItem('warung_login', 'true');
                         localStorage.setItem('warung_mode_offline', 'false');
@@ -1112,7 +1297,6 @@
                             this.showNotification('Password Salah!', 'error');
                         }
                     } catch (e) {
-                        // Fallback aman jika timeout/gagal jaringan saat login
                         localStorage.setItem('warung_login', 'true');
                         localStorage.setItem('warung_mode_offline', 'false');
                         localStorage.setItem('warung_role', this.loginRole);
@@ -1123,7 +1307,7 @@
                         this.userRole = this.loginRole;
                         this.kodeToko = kodeRaw.toLowerCase();
                         this.muatDataCacheLokal();
-                        this.showNotification('Masuk dengan data Cache Lokal (Jaringan terbatas)');
+                        this.showNotification('Masuk dengan data Cache Lokal');
                     } finally {
                         this.isLoadingLogin = false;
                         this.loginPassword = '';
@@ -1151,7 +1335,7 @@
 
                     const u1 = tokoRef.onSnapshot((doc) => {
                         if (doc.exists && doc.data().profilToko) {
-                            this.profilToko = doc.data().profilToko;
+                            this.profilToko = { ...this.profilToko, ...doc.data().profilToko };
                             this.simpanDataCacheLokal();
                         }
                     }, () => {});
@@ -1167,8 +1351,23 @@
 
                     const u3 = tokoRef.collection('transaksi').orderBy('timestamp', 'desc').limit(200).onSnapshot((snap) => {
                         const listTrx = [];
-                        snap.forEach(doc => { listTrx.push({ id: doc.id, ...doc.data() }); });
-                        this.riwayatTransaksi = listTrx;
+                        const pesananOnline = [];
+                        snap.forEach(doc => { 
+                            const d = { id: doc.id, ...doc.data() };
+                            if (d.customer) {
+                                pesananOnline.push(d);
+                            } else {
+                                listTrx.push(d);
+                            }
+                        });
+
+                        if (pesananOnline.length > this.lastPesananCount && this.lastPesananCount !== 0) {
+                            this.putarSuaraNotifPesananMasuk();
+                            this.showNotification('🚨 Pesanan Baru Masuk dari Pelanggan!');
+                        }
+                        this.lastPesananCount = pesananOnline.length;
+                        this.pesananOnlineList = pesananOnline;
+                        this.riwayatTransaksi = [...listTrx, ...pesananOnline];
                         this.simpanDataCacheLokal();
                     }, () => {});
                     unsubs.push(u3);
@@ -1200,6 +1399,59 @@
                         this.showNotification('Profil toko diperbarui!');
                     } catch (e) {
                         this.showNotification('Gagal memperbarui profil', 'error');
+                    }
+                },
+
+                bukaLiveChatModalUmum() {
+                    if (this.pesananOnlineList.length > 0) {
+                        this.bukaLiveChat(this.pesananOnlineList[0]);
+                    } else {
+                        this.activeChatTrx = { customer: { nama: 'Customer Online', telp: '-' } };
+                        this.chatMessages = [
+                            { sender: 'customer', text: 'Halo toko, ada yang ingin saya tanyakan.', time: 'Baru saja' }
+                        ];
+                        this.showChatModal = true;
+                    }
+                },
+
+                bukaLiveChat(p) {
+    this.activeChatTrx = p;
+    this.chatMessages = p.chats || [
+        { sender: 'customer', text: 'Halo toko, ada yang ingin saya tanyakan.', time: 'Baru saja' }
+    ];
+    this.showChatModal = true;
+    this.$nextTick(() => { lucide.createIcons(); });
+},
+
+                async kirimPesanChat() {
+                    if (!this.inputChatText.trim()) return;
+                    const msg = {
+                        sender: 'toko',
+                        text: this.inputChatText.trim(),
+                        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+                    };
+                    this.chatMessages.push(msg);
+                    this.inputChatText = '';
+
+                    if (!this.isModeOffline && navigator.onLine && this.activeChatTrx.id) {
+                        try {
+                            await db.collection('kasirku_toko').doc(this.kodeToko).collection('transaksi').doc(String(this.activeChatTrx.id)).update({
+                                chats: firebase.firestore.FieldValue.arrayUnion(msg)
+                            });
+                        } catch(e){}
+                    }
+                },
+
+                async terimaPesananOnline(p) {
+                    if (confirm('Konfirmasi pesanan selesai dan bayar lunas?')) {
+                        if (!this.isModeOffline && navigator.onLine) {
+                            try {
+                                await db.collection('kasirku_toko').doc(this.kodeToko).collection('transaksi').doc(String(p.id)).update({
+                                    status: 'Selesai & Lunas'
+                                });
+                                this.showNotification('Pesanan berhasil diproses!');
+                            } catch(e){}
+                        }
                     }
                 },
 
@@ -1267,6 +1519,11 @@
                     if (file) { this.kompresGambar(file, (dataUrl) => { this.profilToko.qrisImg = dataUrl; }); }
                 },
 
+                handleLogoUpload(event) {
+                    const file = event.target.files[0];
+                    if (file) { this.kompresGambar(file, (dataUrl) => { this.profilToko.logoImg = dataUrl; }); }
+                },
+
                 generateRandomSku() {
                     const randomNum = Math.floor(100000000 + Math.random() * 900000000);
                     this.formBarang.sku = '899' + randomNum.toString().substring(0, 7);
@@ -1306,7 +1563,6 @@
                         return;
                     }
 
-                    // Update lokal cache dulu agar responsif instan
                     if (this.isEditing) {
                         const idx = this.stokBarang.findIndex(x => String(x.id) === String(docId));
                         if (idx !== -1) this.stokBarang[idx] = { id: docId, ...payload };
@@ -1484,7 +1740,6 @@
                         metode: 'tunai'
                     };
 
-                    // Kurangi stok lokal instan
                     this.keranjang.forEach(c => {
                         const b = this.stokBarang.find(x => x.id === c.id);
                         if (b) b.stok -= c.qty;
