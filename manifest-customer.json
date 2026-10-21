@@ -1,0 +1,15 @@
+{
+  "name": "Kasirku Pelanggan",
+  "short_name": "Pelanggan",
+  "start_url": "./customer3_2.html",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "icon-customer-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
