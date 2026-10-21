@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kasirku - Belanja di Toko Terdekat</title>
+    <link rel="manifest" href="manifest-customer.json">
+<meta name="theme-color" content="#2563eb">
+<link rel="apple-touch-icon" href="icon-customer-512.png">
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <!-- Lucide Icons -->
@@ -11,7 +14,7 @@
     <!-- Leaflet CSS & JS untuk Peta -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Firebase SDK v9 Compat (App, Auth, Firestore) -->
+    <!-- Firebase SDK v9 Compat -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -43,15 +46,27 @@
     <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3.5 shadow-sm">
         <div class="max-w-md mx-auto flex items-center justify-between">
             <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-2xl bg-brand-600 flex items-center justify-center text-white shadow-md font-black">
-                    <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+                <div class="w-10 h-10 rounded-2xl bg-brand-600 flex items-center justify-center text-white shadow-md font-black overflow-hidden border">
+                    <template x-if="tokoAktif && tokoAktif.logoImg">
+                        <img :src="tokoAktif.logoImg" class="w-full h-full object-cover">
+                    </template>
+                    <template x-if="!tokoAktif || !tokoAktif.logoImg">
+                        <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+                    </template>
                 </div>
                 <div>
-                    <h1 class="font-extrabold text-base tracking-tight text-slate-900">Kasirku Pelanggan</h1>
+                    <h1 class="font-extrabold text-base tracking-tight text-slate-900" x-text="tokoAktif ? tokoAktif.nama : 'Kasirku Pelanggan'"></h1>
                     <p class="text-[11px] text-slate-500 font-medium" x-text="isLoggedIn ? ('Halo, ' + customerNoHp) : 'Login Kata Sandi'"></p>
                 </div>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5">
+                <!-- TOMBOL RIWAYAT PEMBELIAN -->
+                <button x-show="isLoggedIn" @click="bukaRiwayatModal()" class="p-2.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl font-bold flex items-center gap-1" title="Riwayat Pembelian">
+                    <i data-lucide="receipt" class="w-5 h-5"></i>
+                </button>
+                <button x-show="isLoggedIn && step !== 'pilih_toko'" @click="bukaLiveChatModal()" class="relative p-2.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl font-bold flex items-center gap-1.5" title="Live Chat Toko">
+                    <i data-lucide="message-square" class="w-5 h-5"></i>
+                </button>
                 <button x-show="isLoggedIn" @click="bukaKeranjangModal()" class="relative p-2.5 bg-brand-50 text-brand-600 rounded-xl font-bold flex items-center gap-1.5">
                     <i data-lucide="shopping-cart" class="w-5 h-5"></i>
                     <span x-show="keranjang.length > 0" class="absolute -top-1.5 -right-1.5 bg-rose-600 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-black" x-text="keranjang.length"></span>
@@ -74,10 +89,9 @@
             </div>
         </template>
 
-        <!-- Container Tersembunyi untuk verifikasi reCAPTCHA SMS Firebase -->
         <div id="recaptcha-container"></div>
 
-        <!-- ================= HALAMAN LOGIN & DAFTAR ================= -->
+        <!-- ================= LOGIN & DAFTAR ================= -->
         <template x-if="!isLoggedIn">
             <div class="min-h-[80vh] flex items-center justify-center">
                 <div class="bg-white border rounded-3xl p-6 w-full space-y-5 shadow-lg">
@@ -89,7 +103,7 @@
                         <p class="text-xs text-slate-500" x-text="authMode === 'login' ? 'Masukkan nomor HP dan kata sandi Anda.' : 'Verifikasi nomor HP via SMS untuk membuat kata sandi.'"></p>
                     </div>
 
-                    <!-- MODE LOGIN DENGAN KATA SANDI -->
+                    <!-- MODE LOGIN -->
                     <template x-if="authMode === 'login'">
                         <div class="space-y-3">
                             <div>
@@ -109,7 +123,7 @@
                         </div>
                     </template>
 
-                    <!-- DAFTAR STEP 1: MASUKKAN NO HP UNTUK KIRIM SMS OTP -->
+                    <!-- DAFTAR STEP 1 -->
                     <template x-if="authMode === 'daftar_step1'">
                         <div class="space-y-3">
                             <div>
@@ -125,7 +139,7 @@
                         </div>
                     </template>
 
-                    <!-- DAFTAR STEP 2: VERIFIKASI KODE SMS OTP -->
+                    <!-- DAFTAR STEP 2 -->
                     <template x-if="authMode === 'daftar_step2'">
                         <div class="space-y-3">
                             <div class="bg-blue-50 p-3 rounded-xl text-xs text-blue-800 text-center font-medium">
@@ -141,7 +155,7 @@
                         </div>
                     </template>
 
-                    <!-- DAFTAR STEP 3: BUAT KATA SANDI BARU -->
+                    <!-- DAFTAR STEP 3 -->
                     <template x-if="authMode === 'daftar_step3'">
                         <div class="space-y-3">
                             <div class="bg-emerald-50 p-3 rounded-xl text-xs text-emerald-800 text-center font-medium">
@@ -160,7 +174,7 @@
             </div>
         </template>
 
-        <!-- ================= APLIKASI UTAMA (SETELAH LOGIN) ================= -->
+        <!-- ================= APLIKASI UTAMA ================= -->
         <template x-if="isLoggedIn">
             <div class="space-y-4">
 
@@ -174,7 +188,7 @@
                             </div>
                             <p class="text-xs text-blue-700 leading-relaxed">Sistem menampilkan toko dalam radius maksimal **2 Kilometer** dari posisi Anda.</p>
                             <button @click="deteksiLokasiSaya()" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md">
-                                <i data-lucide="locate" class="w-4 h-4"></i> Segarkan / Deteksi GPS Saya
+                                <i data-lucide="locate" class="w-4 h-4"></i> Segarkan / Deteksi GPS HP Saya
                             </button>
                         </div>
 
@@ -183,18 +197,25 @@
                         <div class="space-y-3">
                             <template x-for="toko in daftarToko" :key="toko.kode">
                                 <div class="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex items-center justify-between gap-3">
-                                    <div class="space-y-1">
-                                        <div class="flex items-center gap-2">
-                                            <h3 class="font-extrabold text-base text-slate-900" x-text="toko.nama"></h3>
-                                            <span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold" x-text="toko.jarakKm + ' KM'"></span>
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden border flex-shrink-0 flex items-center justify-center">
+                                            <template x-if="toko.logoImg"><img :src="toko.logoImg" class="w-full h-full object-cover"></template>
+                                            <template x-if="!toko.logoImg"><i data-lucide="store" class="w-6 h-6 text-slate-400"></i></template>
                                         </div>
-                                        <p class="text-xs text-slate-500 line-clamp-1" x-text="toko.alamat"></p>
-                                        <p class="text-[11px] text-brand-600 font-bold" x-text="'Telp/WA: ' + toko.telp"></p>
+                                        <div class="space-y-0.5">
+                                            <div class="flex items-center gap-1.5">
+                                                <h3 class="font-extrabold text-base text-slate-900" x-text="toko.nama"></h3>
+                                                <span class="text-[9px] px-1.5 py-0.5 rounded font-bold" :class="toko.isBuka ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'" x-text="toko.isBuka ? 'BUKA' : 'TUTUP'"></span>
+                                                <span class="text-[10px] bg-brand-50 text-brand-700 px-2 py-0.5 rounded-md font-bold" x-text="toko.jarakKm + ' KM'"></span>
+                                            </div>
+                                            <p class="text-xs text-slate-500 line-clamp-1" x-text="toko.alamat"></p>
+                                            <p class="text-[11px] text-brand-600 font-bold" x-text="'Telp/WA: ' + toko.telp"></p>
+                                        </div>
                                     </div>
-                                    <button @click="pilihTokoIni(toko)" :disabled="toko.jarakKm > 2.0" 
-                                            :class="toko.jarakKm > 2.0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-brand-600 hover:bg-brand-700 text-white shadow-md active:scale-95'" 
-                                            class="px-4 py-2.5 rounded-xl text-xs font-extrabold transition whitespace-nowrap">
-                                        <span x-text="toko.jarakKm > 2.0 ? 'Terlalu Jauh (>2KM)' : 'Kunjungi Toko'"></span>
+                                    <button @click="pilihTokoIni(toko)" :disabled="toko.jarakKm > 2.0 || !toko.isBuka" 
+                                            :class="(toko.jarakKm > 2.0 || !toko.isBuka) ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-brand-600 hover:bg-brand-700 text-white shadow-md active:scale-95'" 
+                                            class="px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition whitespace-nowrap">
+                                        <span x-text="!toko.isBuka ? 'Toko Tutup' : (toko.jarakKm > 2.0 ? '>2 KM' : 'Kunjungi')"></span>
                                     </button>
                                 </div>
                             </template>
@@ -208,14 +229,28 @@
                     </div>
                 </template>
 
-                <!-- TAMPILAN 2: KATALOG PRODUK TOKO TERPILIH -->
+                <!-- TAMPILAN 2: KATALOG PRODUK -->
                 <template x-if="step === 'katalog'">
                     <div class="space-y-4">
+                        <div class="bg-amber-50 border border-amber-300 p-3.5 rounded-2xl flex items-start gap-3 shadow-sm">
+                            <i data-lucide="message-square-warning" class="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5"></i>
+                            <div class="space-y-1 text-xs text-amber-900 font-medium">
+                                <p class="font-extrabold uppercase">⚠️ Perhatian Sebelum Membeli:</p>
+                                <p>Wajib chat terlebih dahulu dengan toko melalui tombol <span class="bg-indigo-100 text-indigo-800 font-bold px-1.5 py-0.5 rounded">Chat</span> di atas untuk memastikan apakah pesanan Anda bisa dilayani antar atau tidak.</p>
+                            </div>
+                        </div>
+
                         <div class="bg-white border p-4 rounded-2xl shadow-sm flex justify-between items-center">
-                            <div>
-                                <span class="text-[10px] font-extrabold bg-brand-50 text-brand-700 px-2 py-0.5 rounded">Toko Pilihan</span>
-                                <h2 class="font-black text-lg text-slate-900 mt-1" x-text="tokoAktif.nama"></h2>
-                                <p class="text-xs text-slate-500" x-text="tokoAktif.alamat"></p>
+                            <div class="flex items-center space-x-3">
+                                <div class="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden border flex-shrink-0 flex items-center justify-center">
+                                    <template x-if="tokoAktif.logoImg"><img :src="tokoAktif.logoImg" class="w-full h-full object-cover"></template>
+                                    <template x-if="!tokoAktif.logoImg"><i data-lucide="store" class="w-6 h-6 text-slate-400"></i></template>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] font-extrabold bg-brand-50 text-brand-700 px-2 py-0.5 rounded">Toko Pilihan</span>
+                                    <h2 class="font-black text-base text-slate-900 mt-0.5" x-text="tokoAktif.nama"></h2>
+                                    <p class="text-xs text-slate-500" x-text="tokoAktif.alamat"></p>
+                                </div>
                             </div>
                             <button @click="step = 'pilih_toko'; keranjang = []" class="text-xs text-rose-600 font-bold bg-rose-50 px-3 py-2 rounded-xl border border-rose-200">Ganti Toko</button>
                         </div>
@@ -227,7 +262,7 @@
 
                         <div class="grid grid-cols-2 gap-2.5 max-h-[480px] overflow-y-auto pr-1">
                             <template x-for="item in filteredProduk" :key="item.id">
-                                <div class="bg-white border border-slate-200 p-3 rounded-2xl flex flex-col justify-between shadow-sm">
+                                <div @click="tambahKeKeranjang(item)" class="bg-white border border-slate-200 p-3 rounded-2xl flex flex-col justify-between shadow-sm cursor-pointer hover:border-brand-500 active:scale-95 transition">
                                     <div>
                                         <div class="w-full h-24 bg-slate-100 rounded-xl mb-2 overflow-hidden flex items-center justify-center border">
                                             <template x-if="item.gambar"><img :src="item.gambar" class="w-full h-full object-cover"></template>
@@ -238,10 +273,7 @@
                                     </div>
                                     <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
                                         <span class="text-xs font-black text-brand-600" x-text="formatRupiah(item.jual)"></span>
-                                        <button @click="tambahKeKeranjang(item)" :disabled="item.stok <= 0" 
-                                                class="bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white p-2 rounded-xl text-xs font-bold shadow-sm">
-                                            <i data-lucide="plus" class="w-4 h-4"></i>
-                                        </button>
+                                        <span class="bg-brand-50 text-brand-700 text-[10px] font-bold px-2 py-1 rounded-lg">+ Beli</span>
                                     </div>
                                 </div>
                             </template>
@@ -249,14 +281,19 @@
                     </div>
                 </template>
 
-                <!-- TAMPILAN 3: CHECKOUT & GOOGLE MAPS LOKASI PENGIRIMAN -->
+                <!-- TAMPILAN 3: CHECKOUT & GOOGLE MAPS DENGAN AKURASI GPS AKURAT -->
                 <template x-if="step === 'checkout'">
                     <div class="space-y-4">
                         <div class="bg-white border p-4 rounded-2xl shadow-sm space-y-3">
-                            <h2 class="font-black text-sm text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                                <i data-lucide="map-pin" class="w-5 h-5 text-brand-600"></i> Titik Lokasi Pengiriman (GPS Sesuai Lokasi Anda)
-                            </h2>
-                            <p class="text-xs text-slate-500">Peta otomatis mendeteksi posisi Anda. Anda bisa menggeser pin jika diperlukan (Maksimal jarak 2 KM).</p>
+                            <div class="flex justify-between items-center">
+                                <h2 class="font-black text-sm text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                                    <i data-lucide="map-pin" class="w-5 h-5 text-brand-600"></i> Lokasi Pengiriman
+                                </h2>
+                                <button @click="mintaIzinGpsHp()" class="text-[11px] bg-brand-50 text-brand-700 font-bold px-3 py-1.5 rounded-xl border border-brand-200 flex items-center gap-1">
+                                    <i data-lucide="crosshair" class="w-3.5 h-3.5"></i> Update GPS HP
+                                </button>
+                            </div>
+                            <p class="text-xs text-slate-500">Peta otomatis membaca lokasi HP Anda. Jika tidak pas, klik 'Update GPS HP' atau geser pin merah.</p>
                             <div id="map"></div>
                             <div class="space-y-2 pt-2">
                                 <label class="text-xs font-bold text-slate-600 uppercase">Nama Penerima & No HP</label>
@@ -287,18 +324,17 @@
                             </div>
                         </div>
 
-                        <!-- KOLOM REKENING PEMBAYARAN & UPLOAD BUKTI (NON-COD) -->
                         <div class="bg-white border p-4 rounded-2xl shadow-sm space-y-3 text-center">
                             <h2 class="font-black text-sm text-slate-900 uppercase tracking-wider">Pembayaran Non-COD (Transfer Bank / QRIS)</h2>
                             <div class="bg-blue-50 border border-blue-200 p-3.5 rounded-xl text-left space-y-1">
                                 <p class="text-xs font-bold text-blue-900 uppercase">Silakan transfer pembayaran ke:</p>
-                                <p class="text-xs text-blue-800">🏦 <strong>BCA / Mandiri / Rekening Toko</strong></p>
-                                <p class="text-xs font-mono font-bold text-slate-800">No. Rekening: 1234-5678-9012 (<span x-text="tokoAktif.nama"></span>)</p>
+                                <p class="text-xs text-blue-800">🏦 <strong>Rekening Resmi Toko</strong></p>
+                                <p class="text-xs font-mono font-bold text-slate-800" x-text="tokoAktif.rekening || 'Hubungi Toko via Chat'"></p>
                                 <p class="text-[11px] text-slate-500">Atau scan QRIS toko di bawah ini:</p>
                             </div>
 
                             <template x-if="tokoAktif.qrisImg">
-                                <img :src="tokoAktif.qrisImg" class="w-48 h-48 mx-auto object-contain border p-2 rounded-xl bg-slate-50">
+                                <img :src="tokoAktif.qrisImg" class="w-48 h-48 mx-auto object-contain border p-2 rounded-xl bg-slate-50 shadow-sm">
                             </template>
 
                             <div class="space-y-1.5 pt-2 text-left">
@@ -320,14 +356,20 @@
             </div>
         </template>
 
-        <!-- MODAL KERANJANG -->
+        <!-- MODAL KERANJANG (DENGAN TOMBOL BACK & IKON HAPUS) -->
         <template x-if="showKeranjangModal">
             <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
                 <div class="bg-white rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl">
                     <div class="flex justify-between items-center border-b pb-2">
-                        <h3 class="font-black text-base text-slate-900">Keranjang Belanjaan</h3>
-                        <button @click="showKeranjangModal = false"><i data-lucide="x" class="w-5 h-5 text-slate-400"></i></button>
+                        <div class="flex items-center gap-2">
+                            <button @click="showKeranjangModal = false" class="p-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition" title="Kembali">
+                                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                            </button>
+                            <h3 class="font-black text-base text-slate-900">Keranjang Belanjaan</h3>
+                        </div>
+                        <button @click="showKeranjangModal = false" class="p-1.5 rounded-xl bg-slate-100 text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
                     </div>
+
                     <div class="max-h-56 overflow-y-auto space-y-2.5 divide-y">
                         <template x-for="(c, idx) in keranjang" :key="c.id">
                             <div class="pt-2 flex justify-between items-center text-xs">
@@ -341,7 +383,7 @@
                                         <span class="font-bold w-4 text-center" x-text="c.qty"></span>
                                         <button @click="c.qty++" class="w-6 h-6 bg-slate-100 rounded font-black">+</button>
                                     </div>
-                                    <button @click="keranjang.splice(idx, 1)" class="p-1.5 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100" title="Hapus Item">
+                                    <button @click="keranjang.splice(idx, 1)" class="p-1.5 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 flex items-center justify-center" title="Hapus Item">
                                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                                     </button>
                                 </div>
@@ -349,12 +391,99 @@
                         </template>
                         <template x-if="keranjang.length === 0"><p class="text-center text-xs text-slate-400 py-6">Keranjang masih kosong</p></template>
                     </div>
+
                     <div class="border-t pt-3 flex justify-between items-center font-black text-sm">
                         <span>Total:</span><span class="text-brand-600" x-text="formatRupiah(totalBelanja())"></span>
                     </div>
                     <button @click="lanjutKeCheckout()" :disabled="keranjang.length === 0" class="w-full bg-brand-600 disabled:opacity-40 text-white font-extrabold py-3.5 rounded-xl text-xs shadow-md">
                         Lanjut ke Pengiriman & Lokasi
                     </button>
+                </div>
+            </div>
+        </template>
+
+        <!-- MODAL RIWAYAT PEMBELIAN (BARU) -->
+        <template x-if="showRiwayatModal">
+            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+                <div class="bg-white rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl flex flex-col h-[520px]">
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <div class="flex items-center gap-2">
+                            <button @click="showRiwayatModal = false" class="p-1.5 rounded-xl bg-slate-100 text-slate-600">
+                                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                            </button>
+                            <h3 class="font-black text-base text-slate-900">Riwayat Belanja Saya</h3>
+                        </div>
+                        <button @click="showRiwayatModal = false" class="p-1.5 rounded-xl bg-slate-100 text-slate-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto space-y-3 pr-1">
+                        <template x-for="r in riwayatList" :key="r.id">
+                            <div class="bg-slate-50 border p-3.5 rounded-2xl space-y-2">
+                                <div class="flex justify-between items-start border-b pb-2">
+                                    <div>
+                                        <p class="text-[10px] text-slate-400" x-text="r.tanggal"></p>
+                                        <h4 class="font-bold text-xs text-slate-900" x-text="'Toko: ' + r.tokoNama"></h4>
+                                    </div>
+                                    <span class="text-[10px] font-extrabold px-2 py-0.5 rounded" :class="r.status === 'Selesai & Lunas' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'" x-text="r.status || 'Baru'"></span>
+                                </div>
+                                <div class="text-xs space-y-1 text-slate-600">
+                                    <template x-for="i in r.items" :key="i.id">
+                                        <div class="flex justify-between">
+                                            <span x-text="i.nama + ' (' + i.qty + 'x)'"></span>
+                                            <span class="font-bold" x-text="formatRupiah(i.jual * i.qty)"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                                <div class="border-t pt-1.5 flex justify-between font-black text-xs text-slate-900">
+                                    <span>Total Pembayaran</span>
+                                    <span class="text-brand-600" x-text="formatRupiah(r.totalTagihan || r.total)"></span>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="riwayatList.length === 0">
+                            <div class="text-center py-10 text-slate-400 text-xs">Belum ada riwayat transaksi pembelian.</div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- MODAL LIVE CHAT DENGAN TOKO -->
+        <template x-if="showChatModal">
+            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+                <div class="bg-white rounded-3xl p-5 w-full max-w-sm space-y-3 shadow-2xl flex flex-col h-[520px] relative">
+                    <div class="flex justify-between items-center border-b pb-2.5">
+                        <div class="flex items-center gap-2">
+                            <button @click="showChatModal = false" class="p-1.5 rounded-xl bg-slate-100 text-slate-600">
+                                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                            </button>
+                            <div>
+                                <h3 class="font-black text-sm text-slate-900 leading-tight" x-text="'Chat: ' + (tokoAktif ? tokoAktif.nama : 'Toko')"></h3>
+                                <p class="text-[10px] text-slate-400" x-text="tokoAktif ? tokoAktif.telp : ''"></p>
+                            </div>
+                        </div>
+                        <button @click="showChatModal = false" class="p-1.5 rounded-xl bg-slate-100 text-slate-500">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto space-y-2.5 p-2 bg-slate-50 rounded-2xl border" id="chatContainerCustomer">
+                        <template x-for="c in chatMessages" :key="c.time + c.text">
+                            <div :class="c.sender === 'customer' ? 'text-right' : 'text-left'">
+                                <div :class="c.sender === 'customer' ? 'bg-brand-600 text-white rounded-br-none' : 'bg-white text-slate-900 border rounded-bl-none'" class="inline-block p-3 rounded-2xl max-w-[80%] text-xs font-medium shadow-sm">
+                                    <p x-text="c.text"></p>
+                                    <span class="text-[9px] opacity-70 block mt-1" x-text="c.time"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="flex gap-2 pt-1">
+                        <input type="text" x-model="inputChatText" @keyup.enter="kirimPesanChatCustomer()" placeholder="Ketik pesan..." class="flex-1 bg-slate-100 border border-slate-300 rounded-xl px-3.5 py-3 text-xs font-medium focus:outline-none focus:border-brand-600">
+                        <button @click="kirimPesanChatCustomer()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 rounded-xl font-bold flex items-center justify-center shadow-md active:scale-95 transition">
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </template>
@@ -380,7 +509,7 @@
                 isLoggedIn: localStorage.getItem('customer_login') === 'true',
                 customerNoHp: localStorage.getItem('customer_nohp') || '',
                 
-                authMode: 'login', // 'login', 'daftar_step1', 'daftar_step2', 'daftar_step3'
+                authMode: 'login',
                 loginNoHp: '',
                 loginPassword: '',
                 
@@ -395,7 +524,13 @@
                 produkList: [],
                 searchProduk: '',
                 keranjang: [],
+                riwayatList: [],
                 showKeranjangModal: false,
+                showChatModal: false,
+                showRiwayatModal: false,
+                chatMessages: [],
+                inputChatText: '',
+                lastOrderId: null,
                 notification: { show: false, message: '', type: 'success' },
                 
                 posisiUser: { lat: -6.200000, lng: 106.816666 },
@@ -435,14 +570,11 @@
                 inisialisasiRecaptcha() {
                     try {
                         if (!window.recaptchaVerifier) {
-                            window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-                                'size': 'invisible'
-                            });
+                            window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { 'size': 'invisible' });
                         }
                     } catch(e) {}
                 },
 
-                // --- PROSES LOGIN DENGAN KATA SANDI ---
                 async prosesLogin() {
                     if (!this.loginNoHp || !this.loginPassword) {
                         this.showNotification('Nomor HP dan kata sandi wajib diisi!', 'error');
@@ -478,7 +610,6 @@
                     }
                 },
 
-                // --- PROSES PENDAFTARAN VIA SMS OTP FIREBASE ---
                 async kirimSmsOtp() {
                     if (!this.inputNoHp || this.inputNoHp.length < 10) {
                         this.showNotification('Masukkan nomor HP yang valid!', 'error');
@@ -489,7 +620,6 @@
                     if (formattedHp.startsWith('0')) formattedHp = '+62' + formattedHp.slice(1);
                     else if (!formattedHp.startsWith('+')) formattedHp = '+' + formattedHp;
 
-                    // Cek apakah nomor sudah terdaftar di Firestore
                     try {
                         const checkDoc = await db.collection('kasirku_customers').doc(formattedHp).get();
                         if (checkDoc.exists) {
@@ -506,7 +636,6 @@
                         this.showNotification('Kode SMS OTP berhasil dikirim!');
                     } catch (error) {
                         this.showNotification('Gagal kirim SMS: ' + error.message, 'error');
-                        // Reset recaptcha jika gagal
                         if (window.recaptchaVerifier) window.recaptchaVerifier.render().then(widgetId => grecaptcha.reset(widgetId));
                     }
                 },
@@ -577,6 +706,32 @@
                     return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
                 },
 
+                mintaIzinGpsHp() {
+                    if (navigator.geolocation) {
+                        this.showNotification('Membaca sensor GPS HP...');
+                        navigator.geolocation.getCurrentPosition(
+                            (pos) => {
+                                this.posisiUser.lat = pos.coords.latitude;
+                                this.posisiUser.lng = pos.coords.longitude;
+                                if (this.mapInstance && this.markerInstance) {
+                                    this.mapInstance.setView([this.posisiUser.lat, this.posisiUser.lng], 16);
+                                    this.markerInstance.setLatLng([this.posisiUser.lat, this.posisiUser.lng]);
+                                    this.checkoutForm.lat = this.posisiUser.lat;
+                                    this.checkoutForm.lng = this.posisiUser.lng;
+                                    if (this.tokoAktif) {
+                                        this.jarakPemesananKM = Number(this.hitungJarakKM(this.tokoAktif.lat, this.tokoAktif.lng, this.posisiUser.lat, this.posisiUser.lng).toFixed(2));
+                                    }
+                                }
+                                this.showNotification('✅ GPS HP Berhasil Terdeteksi!');
+                            },
+                            (err) => {
+                                this.showNotification('Pastikan Izin Lokasi GPS di HP diaktifkan!', 'error');
+                            },
+                            { enableHighAccuracy: true, timeout: 15000 }
+                        );
+                    }
+                },
+
                 deteksiLokasiSaya() {
                     if (navigator.geolocation) {
                         navigator.geolocation.getCurrentPosition(
@@ -584,10 +739,9 @@
                                 this.posisiUser.lat = position.coords.latitude;
                                 this.posisiUser.lng = position.coords.longitude;
                                 this.muatDaftarToko();
-                                this.showNotification('Lokasi GPS Anda berhasil dideteksi!');
                             },
                             () => { this.muatDaftarToko(); },
-                            { timeout: 10000 }
+                            { enableHighAccuracy: true, timeout: 10000 }
                         );
                     } else {
                         this.muatDaftarToko();
@@ -610,7 +764,10 @@
                                 nama: prof.nama || doc.id,
                                 alamat: prof.alamat || 'Alamat Toko',
                                 telp: prof.telp || '-',
+                                rekening: prof.rekening || '',
                                 qrisImg: prof.qrisImg || '',
+                                logoImg: prof.logoImg || '',
+                                isBuka: prof.isBuka !== undefined ? prof.isBuka : true,
                                 lat: tLat,
                                 lng: tLng,
                                 jarakKm: Number(jarak.toFixed(2))
@@ -622,6 +779,10 @@
                 },
 
                 async pilihTokoIni(toko) {
+                    if (!toko.isBuka) {
+                        this.showNotification('Maaf, toko sedang TUTUP.', 'error');
+                        return;
+                    }
                     if (toko.jarakKm > 2.0) {
                         this.showNotification('Jarak toko lebih dari 2 KM (Maksimal pengantaran 2 KM).', 'error');
                         return;
@@ -669,6 +830,26 @@
                 bukaKeranjangModal() {
                     if (this.keranjang.length === 0) { this.showNotification('Keranjang kosong', 'error'); return; }
                     this.showKeranjangModal = true;
+                    this.$nextTick(() => { lucide.createIcons(); });
+                },
+
+                async bukaRiwayatModal() {
+                    this.showRiwayatModal = true;
+                    this.$nextTick(() => { lucide.createIcons(); });
+                    try {
+                        let rList = [];
+                        for (let toko of this.daftarToko) {
+                            const snap = await db.collection('kasirku_toko').doc(toko.kode).collection('transaksi').get();
+                            snap.forEach(doc => {
+                                const d = doc.data();
+                                if (d.customer && d.customer.telp === this.customerNoHp) {
+                                    rList.push({ ...d, tokoNama: toko.nama });
+                                }
+                            });
+                        }
+                        rList.sort((a, b) => b.timestamp - a.timestamp);
+                        this.riwayatList = rList;
+                    } catch(e){}
                 },
 
                 lanjutKeCheckout() {
@@ -679,7 +860,7 @@
 
                 inisialisasiPeta() {
                     if (this.mapInstance) this.mapInstance.remove();
-                    this.mapInstance = L.map('map').setView([this.posisiUser.lat, this.posisiUser.lng], 15);
+                    this.mapInstance = L.map('map').setView([this.posisiUser.lat, this.posisiUser.lng], 16);
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.mapInstance);
                     
                     this.markerInstance = L.marker([this.posisiUser.lat, this.posisiUser.lng], { draggable: true }).addTo(this.mapInstance);
@@ -694,6 +875,9 @@
                         this.checkoutForm.lng = c.lng;
                         this.jarakPemesananKM = Number(this.hitungJarakKM(this.tokoAktif.lat, this.tokoAktif.lng, c.lat, c.lng).toFixed(2));
                     });
+
+                    // Otomatis minta izin lokasi GPS akurasi tinggi
+                    this.mintaIzinGpsHp();
                 },
 
                 handleBuktiUpload(e) {
@@ -726,17 +910,64 @@
                         totalBelanja: this.totalBelanja(),
                         ongkir: this.ongkir(),
                         totalTagihan: this.totalBelanja() + this.ongkir(),
-                        status: 'Menunggu Verifikasi Pembayaran',
-                        metode: 'transfer / qris (non-cod)'
+                        status: 'Baru',
+                        metode: 'transfer / qris (non-cod)',
+                        chats: [
+                            { sender: 'customer', text: 'Halo toko, saya telah membuat pesanan baru.', time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) }
+                        ]
                     };
 
                     try {
                         await db.collection('kasirku_toko').doc(this.tokoAktif.kode).collection('transaksi').doc(String(now)).set(orderData);
+                        this.lastOrderId = String(now);
+                        this.dengarkanLiveChatSertaStatus(this.tokoAktif.kode, String(now));
                         alert('✅ Pesanan berhasil dikirim ke Toko ' + this.tokoAktif.nama + '!');
                         this.keranjang = [];
                         this.step = 'pilih_toko';
                     } catch (e) {
                         this.showNotification('Gagal kirim pesanan', 'error');
+                    }
+                },
+
+                dengarkanLiveChatSertaStatus(kodeToko, orderId) {
+                    db.collection('kasirku_toko').doc(kodeToko).collection('transaksi').doc(orderId).onSnapshot((doc) => {
+                        if (doc.exists) {
+                            const data = doc.data();
+                            if (data.chats) this.chatMessages = data.chats;
+                        }
+                    });
+                },
+
+                bukaLiveChatModal() {
+                    if (!this.tokoAktif) {
+                        this.showNotification('Pilih toko terlebih dahulu.', 'error');
+                        return;
+                    }
+                    if (!this.chatMessages.length) {
+                        this.chatMessages = [
+                            { sender: 'customer', text: 'Halo toko, ada yang ingin saya tanyakan.', time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) }
+                        ];
+                    }
+                    this.showChatModal = true;
+                    this.$nextTick(() => { lucide.createIcons(); });
+                },
+
+                async kirimPesanChatCustomer() {
+                    if (!this.inputChatText.trim()) return;
+                    const msg = {
+                        sender: 'customer',
+                        text: this.inputChatText.trim(),
+                        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+                    };
+                    this.chatMessages.push(msg);
+                    this.inputChatText = '';
+
+                    if (this.tokoAktif && this.lastOrderId) {
+                        try {
+                            await db.collection('kasirku_toko').doc(this.tokoAktif.kode).collection('transaksi').doc(this.lastOrderId).update({
+                                chats: firebase.firestore.FieldValue.arrayUnion(msg)
+                            });
+                        } catch(e){}
                     }
                 }
             }
