@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kasirku - Aplikasi Pembukuan & Stok Toko</title>
     <!-- Manifest & PWA Meta Tags -->
     <link rel="manifest" href="manifest.json">
@@ -78,7 +78,17 @@
             #print-all-container { 
                 position: absolute; left: 0; top: 0; width: 100%; display: block !important; background: white;
             }
+        }/* PENGATURAN MODE DESKTOP / LAYAR LEBAR */
+    @media (min-width: 768px) {
+        main.max-w-md, 
+        header .max-w-md, 
+        nav .max-w-md {
+            max-width: 900px !important;
         }
+        .grid-cols-2 {
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        }
+    }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 antialiased min-h-screen pb-28" x-data="warungApp()">
