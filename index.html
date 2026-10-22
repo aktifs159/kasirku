@@ -87,6 +87,18 @@
         }
         .grid-cols-2 {
             grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            @media (min-width: 768px) {
+        main.max-w-md, 
+        header .max-w-md, 
+        nav .max-w-md {
+            max-width: 900px !important;
+        }
+        .grid-cols-2 {
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        }
+        /* Tambahkan baris ini di sini */
+        .max-w-sm {
+            max-width: 500px !important;       
         }
     }
     </style>
