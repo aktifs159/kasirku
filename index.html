@@ -80,14 +80,27 @@
             }
         }/* PENGATURAN MODE DESKTOP / LAYAR LEBAR */
     @media (min-width: 768px) {
+        /* 1. Memperlebar Kontainer Utama & Header/Nav */
         main.max-w-md, 
         header .max-w-md, 
         nav .max-w-md {
             max-width: 900px !important;
         }
+
+        /* 2. Memperlebar Kartu Login & Memaksa Lebar 500px di Tengah */
         .max-w-sm {
             max-width: 500px !important;
+            width: 500px !important;
         }
+
+        /* 3. Mengetengahkan Indikator Status Koneksi di Atas */
+        body > div.sticky.top-0 {
+            justify-content: center !important;
+            padding-left: 2rem !important;
+            padding-right: 2rem !important;
+        }
+
+        /* 4. Grid Kasir 4 Kolom di Layar Lebar */
         .grid-cols-2 {
             grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
         }
