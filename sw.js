@@ -37,6 +37,11 @@ self.addEventListener('activate', (event) => {
 
 // Event Fetch: Mengambil data dari cache saat offline
 self.addEventListener('fetch', (event) => {
+  // ⛔ PENTING: Abaikan folder customer agar tidak ikut di-cache oleh Penjual
+  if (event.request.url.includes('/customer/')) {
+    return;
+  }
+
   // Jangan cache permintaan ke Firebase Firestore agar data tetap real-time saat online
   if (event.request.url.includes('firestore.googleapis.com') || event.request.url.includes('firebase')) {
     return;
