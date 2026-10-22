@@ -1,9 +1,10 @@
 {
+  "id": "/kasirku/index.html",
   "name": "Kasirku POS",
   "short_name": "Kasirku",
   "description": "Aplikasi Kasir POS dan Pembukuan Warung Kasirku",
-  "start_url": "./index.html",
-  "scope": "/kasirku/",
+  "start_url": "/kasirku/index.html",
+  "scope": "/kasirku/index.html",
   "display": "standalone",
   "background_color": "#f8fafc",
   "theme_color": "#2563eb",
