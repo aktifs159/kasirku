@@ -9,13 +9,13 @@
   "theme_color": "#2563eb",
   "icons": [
     {
-      "src": "icon-customer-512.png",
+      "src": "https://github.com/aktifs159/kasirku/blob/main/icon-customer-512.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon-customer-512.png",
+      "src": "https://github.com/aktifs159/kasirku/blob/main/icon-customer-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
